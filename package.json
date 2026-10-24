@@ -1,0 +1,16 @@
+{
+  "name": "football-prediction-app",
+  "version": "1.0.0",
+  "description": "Real Football Prediction Web App with Basic and Serious Game Modes",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build:client": "npm run build --prefix client",
+    "build:server": "npm run build --prefix server",
+    "build": "npm run build:client && npm run build:server",
+    "start": "node server/dist/index.js",
+    "seed": "npm run seed --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
