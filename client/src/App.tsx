@@ -4,6 +4,7 @@ import { GameModeProvider, useGameMode } from './context/GameModeContext';
 import { Navbar } from './components/Navbar';
 import { ModeBanner } from './components/ModeBanner';
 import { MatchList } from './components/MatchList';
+import { MarketsSection } from './components/MarketsSection';
 import { PredictionModal } from './components/PredictionModal';
 import { SeriousSetBuilder } from './components/SeriousSetBuilder';
 import { PredictionHistory } from './components/PredictionHistory';
@@ -101,6 +102,14 @@ const MainApp: React.FC = () => {
             setFilter={setMatchFilter}
             competition={competitionFilter}
             setCompetition={setCompetitionFilter}
+          />
+        )}
+
+        {activeTab === 'markets' && (
+          <MarketsSection
+            matches={matches}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onRefreshData={handlePredictionSuccess}
           />
         )}
 

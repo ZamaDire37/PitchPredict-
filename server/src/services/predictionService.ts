@@ -1,4 +1,5 @@
 import { db, queryAll, queryOne, run } from '../db/database.js';
+import { getMarketDefinition } from './marketRegistry.js';
 
 export interface CreatePredictionItem {
   matchId: number;
@@ -11,6 +12,11 @@ export class PredictionService {
    * Returns point value for a specific market & selection
    */
   public static getMarketOddsPoints(marketType: string, selection: string): number {
+    const def = getMarketDefinition(marketType);
+    if (def) {
+      return def.defaultOdds(selection);
+    }
+
     switch (marketType) {
       case 'EXACT_SCORE':
         return 30;

@@ -1,4 +1,5 @@
 import { db, queryAll, queryOne, run } from '../db/database.js';
+import { getMarketDefinition } from './marketRegistry.js';
 
 export interface MatchResult {
   id: number;
@@ -39,6 +40,11 @@ export function evaluatePrediction(
     awayCorners: number;
   }
 ): { isCorrect: boolean; actualResultStr: string } {
+  const def = getMarketDefinition(marketType);
+  if (def) {
+    return def.evaluate(selection, result);
+  }
+
   const { homeScore, awayScore, homeCorners, awayCorners } = result;
   const totalGoals = homeScore + awayScore;
   const totalCorners = (homeCorners ?? 0) + (awayCorners ?? 0);
