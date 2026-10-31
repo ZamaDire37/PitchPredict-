@@ -255,12 +255,16 @@ export class PredictionService {
       params.push(mode);
     }
 
-    if (status) {
+    if (status === 'DONE' || status === 'COMPLETED') {
+      sql += " AND p.status IN ('CORRECT', 'INCORRECT') AND m.status = 'FINISHED'";
+    } else if (status === 'PENDING') {
+      sql += " AND p.status = 'PENDING'";
+    } else if (status === 'CORRECT' || status === 'INCORRECT') {
       sql += ' AND p.status = ?';
       params.push(status);
     }
 
-    sql += ' ORDER BY p.created_at DESC';
+    sql += ' ORDER BY COALESCE(p.resolved_at, p.created_at) DESC';
 
     return queryAll(sql, params);
   }
@@ -304,6 +308,7 @@ export class PredictionService {
 
   /**
    * Get full public profile and past predictions for a specific user.
+   * Only completed predictions and finalized sets are displayed publicly.
    */
   public static getUserProfile(userId: number) {
     const user = queryOne<{
@@ -329,12 +334,14 @@ export class PredictionService {
       throw new Error(`User #${userId} not found`);
     }
 
-    const predictions = this.getUserPredictions(userId);
-    const seriousSets = this.getUserSeriousSets(userId);
+    const predictions = this.getUserPredictions(userId, undefined, 'DONE');
+    const seriousSets = this.getUserSeriousSets(userId).filter(
+      (s: any) => s.status === 'WON' || s.status === 'LOST'
+    );
 
     const correctCount = predictions.filter((p: any) => p.status === 'CORRECT').length;
     const incorrectCount = predictions.filter((p: any) => p.status === 'INCORRECT').length;
-    const pendingCount = predictions.filter((p: any) => p.status === 'PENDING').length;
+    const pendingCount = 0;
     const totalResolved = correctCount + incorrectCount;
     const winRate = totalResolved > 0 ? Math.round((correctCount / totalResolved) * 100) : 0;
 
@@ -374,6 +381,7 @@ export class PredictionService {
 
   /**
    * Get community feed of other users' predictions across all matches.
+   * Strictly filters for predictions that are DONE (from finished matches). No pending results.
    */
   public static getCommunityPredictions(mode?: 'BASIC' | 'SERIOUS', status?: string, limit: number = 60) {
     let sql = `
@@ -389,7 +397,8 @@ export class PredictionService {
       JOIN users u ON p.user_id = u.id
       JOIN matches m ON p.match_id = m.id
       LEFT JOIN serious_sets s ON p.serious_set_id = s.id
-      WHERE 1=1
+      WHERE p.status IN ('CORRECT', 'INCORRECT')
+        AND m.status = 'FINISHED'
     `;
     const params: any[] = [];
 
@@ -398,19 +407,19 @@ export class PredictionService {
       params.push(mode);
     }
 
-    if (status && status !== 'ALL') {
+    if (status === 'CORRECT' || status === 'INCORRECT') {
       sql += ' AND p.status = ?';
       params.push(status);
     }
 
-    sql += ' ORDER BY COALESCE(p.resolved_at, p.created_at) DESC LIMIT ?';
+    sql += ' ORDER BY COALESCE(p.resolved_at, m.utc_date) DESC LIMIT ?';
     params.push(limit);
 
     return queryAll(sql, params);
   }
 
   /**
-   * Get all predictions made by any user on a specific match.
+   * Get all completed predictions made on a specific finished match.
    */
   public static getMatchCommunityPredictions(matchId: number) {
     return queryAll(
@@ -419,9 +428,12 @@ export class PredictionService {
               s.name as set_name, s.status as set_status
        FROM predictions p
        JOIN users u ON p.user_id = u.id
+       JOIN matches m ON p.match_id = m.id
        LEFT JOIN serious_sets s ON p.serious_set_id = s.id
        WHERE p.match_id = ?
-       ORDER BY p.created_at DESC`,
+         AND p.status IN ('CORRECT', 'INCORRECT')
+         AND m.status = 'FINISHED'
+       ORDER BY p.resolved_at DESC`,
       [matchId]
     );
   }

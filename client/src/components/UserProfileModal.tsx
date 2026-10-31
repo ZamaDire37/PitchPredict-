@@ -32,7 +32,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
   const [error, setError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'ALL' | 'BASIC' | 'SERIOUS'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'CORRECT' | 'INCORRECT' | 'PENDING'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'CORRECT' | 'INCORRECT'>('ALL');
 
   useEffect(() => {
     if (!userId) return;
@@ -63,7 +63,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
   const filteredSeriousSets = (data?.seriousSets || []).filter((s) => {
     if (statusFilter === 'CORRECT' && s.status !== 'WON') return false;
     if (statusFilter === 'INCORRECT' && s.status !== 'LOST') return false;
-    if (statusFilter === 'PENDING' && s.status !== 'PENDING') return false;
     return true;
   });
 
@@ -248,7 +247,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
                   { id: 'ALL', label: 'All Outcomes' },
                   { id: 'CORRECT', label: '✓ Won' },
                   { id: 'INCORRECT', label: '✕ Lost' },
-                  { id: 'PENDING', label: '⏳ Pending' },
                 ].map((st) => (
                   <button
                     key={st.id}

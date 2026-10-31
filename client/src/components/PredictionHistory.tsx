@@ -41,7 +41,7 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
 
   // Sub-tab for My Predictions: BASIC vs SERIOUS
   const [mySubTab, setMySubTab] = useState<'BASIC' | 'SERIOUS'>(mode);
-  const [myStatusFilter, setMyStatusFilter] = useState<string>('ALL');
+  const [myStatusFilter, setMyStatusFilter] = useState<string>('DONE');
 
   // Filters for Community Predictions
   const [communityModeFilter, setCommunityModeFilter] = useState<'ALL' | 'BASIC' | 'SERIOUS'>('ALL');
@@ -112,6 +112,14 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
     }
   };
 
+  const displayedSets = seriousSets.filter((set) => {
+    if (myStatusFilter === 'DONE') return set.status === 'WON' || set.status === 'LOST';
+    if (myStatusFilter === 'CORRECT') return set.status === 'WON';
+    if (myStatusFilter === 'INCORRECT') return set.status === 'LOST';
+    if (myStatusFilter === 'PENDING') return set.status === 'PENDING';
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       {/* Top Main Tab Navigation */}
@@ -172,11 +180,11 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <span>Community Past Predictions Stream</span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
-                    {communityPredictions.length} picks
+                    {communityPredictions.length} finished
                   </span>
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Click any player to inspect their entire prediction history, win rate %, and streak records.
+                  Showing completed predictions from finished matches. Pending predictions are excluded until matches conclude.
                 </p>
               </div>
             </div>
@@ -222,10 +230,9 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
               {/* Status Filter */}
               <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
                 {[
-                  { id: 'ALL', label: 'All' },
+                  { id: 'ALL', label: 'All Done' },
                   { id: 'CORRECT', label: 'Won' },
                   { id: 'INCORRECT', label: 'Lost' },
-                  { id: 'PENDING', label: 'Pending' },
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -492,23 +499,22 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
 
                 {/* Status Filter */}
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                  {['ALL', 'PENDING', 'CORRECT', 'INCORRECT'].map((st) => (
+                  {[
+                    { id: 'DONE', label: 'Done (Completed)' },
+                    { id: 'CORRECT', label: 'Won' },
+                    { id: 'INCORRECT', label: 'Lost' },
+                    { id: 'PENDING', label: 'Active / Pending Picks' },
+                  ].map((st) => (
                     <button
-                      key={st}
-                      onClick={() => setMyStatusFilter(st)}
+                      key={st.id}
+                      onClick={() => setMyStatusFilter(st.id)}
                       className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                        myStatusFilter === st
-                          ? 'bg-slate-800 text-white border border-slate-700'
+                        myStatusFilter === st.id
+                          ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
                           : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                       }`}
                     >
-                      {st === 'ALL'
-                        ? 'All Statuses'
-                        : st === 'CORRECT'
-                        ? 'Won'
-                        : st === 'INCORRECT'
-                        ? 'Lost'
-                        : 'Pending'}
+                      {st.label}
                     </button>
                   ))}
                 </div>
@@ -645,16 +651,18 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                         />
                       ))}
                     </div>
-                  ) : seriousSets.length === 0 ? (
+                  ) : displayedSets.length === 0 ? (
                     <div className="text-center py-16 px-4 bg-slate-900/30 border border-slate-800 rounded-3xl">
                       <Flame className="w-10 h-10 text-amber-500/50 mx-auto mb-2" />
-                      <h4 className="text-sm font-bold text-white mb-1">No Serious Sets Found</h4>
+                      <h4 className="text-sm font-bold text-white mb-1">No Sets Found</h4>
                       <p className="text-xs text-slate-400">
-                        You haven't created any Serious Mode sets yet. Switch to Serious Mode in the header to bundle predictions!
+                        {myStatusFilter === 'DONE'
+                          ? 'No completed Serious Mode sets yet. Sets appear here once all matches in the set conclude.'
+                          : 'No Serious Mode sets match this filter.'}
                       </p>
                     </div>
                   ) : (
-                    seriousSets.map((set) => {
+                    displayedSets.map((set) => {
                       const isWon = set.status === 'WON';
                       const isLost = set.status === 'LOST';
                       const isPending = set.status === 'PENDING';
