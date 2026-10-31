@@ -1,12 +1,16 @@
 {
-  "name": "football-prediction-app",
+  "name": "pitchpredict",
   "version": "1.0.0",
   "description": "Real Football Prediction Web App with Basic and Serious Game Modes",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
+    "postinstall": "npm --prefix client install && npm --prefix server install",
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "build:client": "npm run build --prefix client",
-    "build:server": "npm run build --prefix server",
-    "build": "npm run build:client && npm run build:server",
+    "build:client": "npm --prefix client run build",
+    "build:server": "npm --prefix server run build",
+    "build": "npm --prefix client install && npm --prefix server install && npm --prefix client run build && npm --prefix server run build",
     "start": "node server/dist/index.js",
     "seed": "npm run seed --prefix server"
   },
