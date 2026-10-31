@@ -1,54 +1,173 @@
 import React from 'react';
 import { useGameMode } from '../context/GameModeContext';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Flame, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Shield, Flame, AlertTriangle, Zap, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export const ModeBanner: React.FC = () => {
-  const { mode } = useGameMode();
+  const { mode, setMode, stagedPredictions } = useGameMode();
   const { user } = useAuth();
 
   return (
-    <div className="w-full">
+    <div className="w-full relative z-10 transition-all duration-300">
       {mode === 'BASIC' ? (
-        <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-emerald-950/40 border-y border-emerald-500/20 py-2.5 px-4">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 text-emerald-300 font-medium">
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
-                <Shield className="w-3.5 h-3.5" />
+        /* ================= BASIC MODE: CALM & RISK-FREE ================= */
+        <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900/90 to-emerald-950/70 border-y border-emerald-500/30 py-2.5 sm:py-3 px-3 sm:px-4 shadow-md backdrop-blur-md">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3 text-xs">
+            <div className="flex items-start sm:items-center gap-2.5 sm:gap-3">
+              <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 shadow-sm shrink-0 mt-0.5 sm:mt-0">
+                <Shield className="w-4 h-4" />
               </span>
-              <span>
-                <strong className="text-white font-bold">BASIC MODE:</strong> Risk-free predictions. Correct predictions earn points. Incorrect predictions earn 0 points. <span className="text-emerald-400 underline decoration-emerald-500/50">No point penalties</span>.
-              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-slate-950 font-black text-[10px] tracking-wider uppercase">
+                    Basic Mode Active
+                  </span>
+                  <span className="font-bold text-white text-xs sm:text-sm">Safe & Risk-Free Mode</span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    10 Picks/Day Limit
+                  </span>
+                </div>
+                <p className="text-slate-300 text-[11px] mt-0.5 hidden xs:block">
+                  Make predictions with a <strong className="text-emerald-300">limit of 10 selections per day</strong> (resets daily at 00:00 UTC). <strong className="text-emerald-300 underline decoration-emerald-500/60">Zero point penalties</strong>.
+                </p>
+              </div>
             </div>
 
-            {user && (
-              <div className="flex items-center gap-3 text-slate-300 font-semibold bg-emerald-950/60 px-3 py-1 rounded-md border border-emerald-500/30">
-                <span>Basic Bankroll: <strong className="text-emerald-400">{user.basic_points} pts</strong></span>
-                <span>•</span>
-                <span>Streak: <strong className="text-emerald-400">{user.basic_streak} 🔥</strong></span>
-              </div>
-            )}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 shrink-0">
+              {user && (
+                <>
+                  {/* Mobile Stats Grid */}
+                  <div className="grid grid-cols-3 gap-1.5 w-full md:hidden bg-slate-950/90 p-2 rounded-xl border border-emerald-500/30 text-center shadow-inner">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-slate-400">Bankroll</span>
+                      <strong className="text-emerald-400 font-mono text-xs font-bold">{user.basic_points} pts</strong>
+                    </div>
+                    <div className="flex flex-col border-x border-slate-800">
+                      <span className="text-[10px] text-slate-400">Picks Today</span>
+                      <strong
+                        className={`font-mono text-xs font-bold ${
+                          (user.basic_daily_count ?? user.basic_pending_count ?? 0) >= 10
+                            ? 'text-amber-400'
+                            : 'text-emerald-400'
+                        }`}
+                      >
+                        {(user.basic_daily_count ?? user.basic_pending_count ?? 0)}/10
+                      </strong>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-slate-400">Streak</span>
+                      <strong className="text-emerald-400 font-mono text-xs font-bold">{user.basic_streak} 🔥</strong>
+                    </div>
+                  </div>
+
+                  {/* Desktop Inline Pill */}
+                  <div className="hidden md:flex items-center gap-2.5 text-slate-300 font-semibold bg-slate-950/80 px-3.5 py-1.5 rounded-xl border border-emerald-500/30 shadow-inner">
+                    <span className="text-slate-400 text-[11px]">Basic Bankroll:</span>
+                    <strong className="text-emerald-400 font-mono text-sm">{user.basic_points} pts</strong>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-slate-400 text-[11px]">Today's Picks:</span>
+                    <strong
+                      className={`font-mono text-sm ${
+                        (user.basic_daily_count ?? user.basic_pending_count ?? 0) >= 10
+                          ? 'text-amber-400 font-black'
+                          : 'text-emerald-400'
+                      }`}
+                    >
+                      {(user.basic_daily_count ?? user.basic_pending_count ?? 0)}/10 Today
+                    </strong>
+                    <span className="text-slate-600">•</span>
+                    <span className="text-slate-400 text-[11px]">Streak:</span>
+                    <strong className="text-emerald-400 font-mono">{user.basic_streak} 🔥</strong>
+                  </div>
+                </>
+              )}
+
+              <button
+                onClick={() => setMode('SERIOUS')}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-red-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all min-h-[38px] sm:min-h-0"
+                title="Switch to Serious Mode"
+              >
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                <span>Try Serious Mode</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
           </div>
         </div>
       ) : (
-        <div className="bg-gradient-to-r from-amber-950/50 via-slate-900 to-red-950/50 border-y border-amber-500/30 py-2.5 px-4">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 text-amber-200 font-medium">
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-bold text-[10px]">
-                <Flame className="w-3.5 h-3.5" />
+        /* ================= SERIOUS MODE: HIGH-STAKES HAZARD HUD ================= */
+        <div className="bg-gradient-to-r from-red-950 via-[#1c0808] to-amber-950 border-y-2 border-red-500/60 py-2.5 sm:py-3.5 px-3 sm:px-4 shadow-xl shadow-red-950/40 backdrop-blur-md relative overflow-hidden">
+          {/* Subtle animated hazard diagonal stripes */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none bg-[repeating-linear-gradient(45deg,#000,#000_10px,#ef4444_10px,#ef4444_20px)]" />
+
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs relative z-10">
+            <div className="flex items-start sm:items-center gap-2.5 sm:gap-3">
+              <span className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-amber-500 to-red-600 text-white font-black shadow-lg shadow-red-500/30 shrink-0 ring-2 ring-red-500/50 animate-pulse mt-0.5 sm:mt-0">
+                <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-amber-200" />
               </span>
-              <span>
-                <strong className="text-white font-bold">SERIOUS MODE:</strong> Predictions are grouped into sets. Win all to collect full points. <span className="text-red-400 font-bold underline decoration-red-500/50">If ANY pick fails, 10 points are deducted once</span> for that entire set!
-              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-red-600 text-white font-black text-[10px] tracking-wider uppercase shadow-md flex items-center gap-1">
+                    <Zap className="w-3 h-3" />
+                    Serious Mode Active
+                  </span>
+                  <span className="font-black text-white text-xs sm:text-base tracking-wide">
+                    HIGH-STAKES SETS <span className="text-red-400 font-mono">(-10 PTS PENALTY)</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-amber-200/90 font-medium hidden xs:flex">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                  <span>
+                    Predictions are grouped into <strong>Sets</strong> (<strong>Make as many selections as you want!</strong>). <strong className="text-red-400 underline decoration-red-500 font-black">If ANY pick fails, 10 points are deducted once</strong>.
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {user && (
-              <div className="flex items-center gap-3 text-slate-300 font-semibold bg-amber-950/60 px-3 py-1 rounded-md border border-amber-500/40">
-                <span>Serious Bankroll: <strong className="text-amber-400">{user.serious_points} pts</strong></span>
-                <span>•</span>
-                <span>Streak: <strong className="text-amber-400">{user.serious_streak} ⚡</strong></span>
-              </div>
-            )}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 shrink-0">
+              {user && (
+                <>
+                  {/* Mobile Stats Grid */}
+                  <div className="grid grid-cols-2 gap-1.5 w-full md:hidden bg-black/80 p-2 rounded-xl border border-red-500/50 text-center shadow-inner">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-amber-400/80 uppercase font-bold">Bankroll</span>
+                      <strong className="text-amber-300 font-mono text-sm font-black">{user.serious_points} pts</strong>
+                    </div>
+                    <div className="flex flex-col border-l border-red-900/60">
+                      <span className="text-[10px] text-amber-400/80 uppercase font-bold">Streak</span>
+                      <strong className="text-red-400 font-mono text-sm font-black">{user.serious_streak} ⚡</strong>
+                    </div>
+                  </div>
+
+                  {/* Desktop Inline Pill */}
+                  <div className="hidden md:flex items-center gap-2.5 text-slate-300 font-semibold bg-black/70 px-4 py-2 rounded-xl border border-red-500/50 shadow-inner">
+                    <span className="text-amber-400/80 text-[11px] uppercase tracking-wider font-bold">Serious Bankroll:</span>
+                    <strong className="text-amber-300 font-mono text-base font-black">{user.serious_points} pts</strong>
+                    <span className="text-red-500/50">•</span>
+                    <span className="text-amber-400/80 text-[11px] uppercase tracking-wider font-bold">Streak:</span>
+                    <strong className="text-red-400 font-mono text-sm font-black">{user.serious_streak} ⚡</strong>
+                  </div>
+                </>
+              )}
+
+              {stagedPredictions.length > 0 && (
+                <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold animate-bounce">
+                  <span>In Set Builder:</span>
+                  <strong className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-black">
+                    {stagedPredictions.length}
+                  </strong>
+                </div>
+              )}
+
+              <button
+                onClick={() => setMode('BASIC')}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 hover:text-white text-xs font-semibold transition-all min-h-[38px] sm:min-h-0"
+                title="Switch back to Basic Mode (Zero Penalty)"
+              >
+                <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Switch to Basic (Safe)</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

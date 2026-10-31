@@ -5,6 +5,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { initDatabase } from './db/database.js';
+import { enrichAllMatchesInDatabase } from './db/enrichMatches.js';
+import { RealFootballApiService } from './services/realFootballApi.js';
 import { FootballApiService } from './services/footballApi.js';
 
 import authRoutes from './routes/auth.js';
@@ -22,9 +24,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize DB and real football fixtures
+// Initialize DB and sync real football fixtures from live APIs
 initDatabase();
-FootballApiService.seedRealFixtures(false);
+enrichAllMatchesInDatabase();
+RealFootballApiService.syncRealMatches().then((res) => {
+  console.log(`[Startup] ${res.message}`);
+  enrichAllMatchesInDatabase();
+}).catch((err) => {
+  console.warn(`[Startup API Sync] ${err.message}`);
+  enrichAllMatchesInDatabase();
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -56,10 +65,11 @@ if (fs.existsSync(clientDistPath)) {
 // Background auto-poller for live match results (runs every 10 minutes)
 setInterval(async () => {
   try {
-    console.log('[Scheduler] Checking live football updates...');
-    await FootballApiService.syncFromApi();
+    console.log('[Scheduler] Checking live real football API updates...');
+    const syncRes = await RealFootballApiService.syncRealMatches();
+    console.log(`[Scheduler] Live API update complete: ${syncRes.syncedCount} matches synced.`);
   } catch (err: any) {
-    console.error('[Scheduler] Error during auto sync:', err.message);
+    console.error('[Scheduler] Error during real API auto sync:', err.message);
   }
 }, 10 * 60 * 1000);
 

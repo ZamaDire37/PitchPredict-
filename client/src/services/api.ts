@@ -1,4 +1,4 @@
-import { Match, Prediction, SeriousSet, PointsHistoryEntry, User } from '../types';
+import { Match, Prediction, SeriousSet, PointsHistoryEntry, User, CommunityPrediction, UserProfileData } from '../types';
 
 const API_BASE = '/api';
 
@@ -51,17 +51,34 @@ export const api = {
   },
 
   // Matches
-  async getMatches(filter: string = 'upcoming', competition?: string, date?: string): Promise<{ matches: Match[] }> {
+  async getMatches(
+    filter: string = 'upcoming',
+    competition?: string,
+    date?: string,
+    team?: string,
+    tzOffset?: number,
+    clientDate?: string
+  ): Promise<{ matches: Match[] }> {
     const params = new URLSearchParams();
     if (filter) params.append('filter', filter);
     if (competition && competition !== 'ALL') params.append('competition', competition);
     if (date) params.append('date', date);
+    if (team) params.append('team', team);
+    if (tzOffset !== undefined) params.append('tzOffset', tzOffset.toString());
+    if (clientDate) params.append('clientDate', clientDate);
 
     const res = await fetch(`${API_BASE}/matches?${params.toString()}`, {
       headers: { ...getAuthHeader() },
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to fetch matches');
+    return data;
+  },
+
+  async getApiDiagnostics(): Promise<{ diagnostics: any }> {
+    const res = await fetch(`${API_BASE}/matches/api-diagnostics`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch API diagnostics');
     return data;
   },
 
@@ -205,11 +222,52 @@ export const api = {
     return data;
   },
 
-  // Leaderboards
-  async getLeaderboard(mode: 'BASIC' | 'SERIOUS'): Promise<{ mode: string; leaderboard: any[] }> {
-    const res = await fetch(`${API_BASE}/leaderboard/${mode.toLowerCase()}`);
+  // Leaderboards with Section Filtering & Hottest Streaks
+  async getLeaderboard(
+    mode: 'BASIC' | 'SERIOUS',
+    section: 'points' | 'streak' | 'accuracy' | 'wins' = 'points'
+  ): Promise<{
+    mode: string;
+    section: string;
+    leaderboard: any[];
+    spotlights: {
+      topPoints?: any;
+      hottestStreak?: any;
+      bestStreakRecord?: any;
+      highestAccuracy?: any;
+      mostWins?: any;
+    };
+    hotStreakers: any[];
+  }> {
+    const res = await fetch(`${API_BASE}/leaderboard/${mode.toLowerCase()}?section=${section}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to fetch leaderboard');
+    return data;
+  },
+
+  // Community & Other Users Past Predictions
+  async getUserProfile(userId: number): Promise<UserProfileData> {
+    const res = await fetch(`${API_BASE}/predictions/user/${userId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch user predictions');
+    return data;
+  },
+
+  async getCommunityPredictions(mode?: 'BASIC' | 'SERIOUS', status?: string): Promise<{ predictions: CommunityPrediction[] }> {
+    const params = new URLSearchParams();
+    if (mode) params.append('mode', mode);
+    if (status && status !== 'ALL') params.append('status', status);
+
+    const res = await fetch(`${API_BASE}/predictions/community?${params.toString()}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch community predictions');
+    return data;
+  },
+
+  async getMatchCommunityPredictions(matchId: number): Promise<{ predictions: CommunityPrediction[] }> {
+    const res = await fetch(`${API_BASE}/predictions/match/${matchId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch match predictions');
     return data;
   },
 
@@ -224,6 +282,20 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey }),
+    });
+    return await res.json();
+  },
+
+  // Database & Supabase
+  async getDatabaseStatus(): Promise<{ database: any }> {
+    const res = await fetch(`${API_BASE}/auth/database-status`);
+    return await res.json();
+  },
+
+  async syncSupabase(): Promise<{ success: boolean; totalSynced: number; error?: string }> {
+    const res = await fetch(`${API_BASE}/auth/sync-supabase`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
     });
     return await res.json();
   },

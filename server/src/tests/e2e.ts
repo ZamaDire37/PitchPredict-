@@ -21,12 +21,13 @@ async function runE2E() {
 
   // Step 2: Fetch Upcoming Matches
   console.log('\n[2] Fetching upcoming matches...');
-  const matchesRes = await axios.get(`${BASE_URL}/matches?filter=all`, { headers });
+  const matchesRes = await axios.get(`${BASE_URL}/matches?filter=upcoming`, { headers });
   const matches = matchesRes.data.matches;
-  console.log(`Retrieved ${matches.length} matches from system.`);
+  console.log(`Retrieved ${matches.length} upcoming matches from system.`);
 
-  const m1 = matches.find((m: any) => m.id === 1) || matches[0];
-  const m2 = matches.find((m: any) => m.id === 2) || matches[1];
+  const futureMatches = matches.filter((m: any) => new Date(m.utc_date).getTime() > Date.now());
+  const m1 = futureMatches[0] || matches[0];
+  const m2 = futureMatches[1] || matches[1];
 
   console.log(`Match 1: ${m1.home_team_name} vs ${m1.away_team_name}`);
   console.log(`Match 2: ${m2.home_team_name} vs ${m2.away_team_name}`);
@@ -68,9 +69,9 @@ async function runE2E() {
 
   // Check user after Match 1
   let me = (await axios.get(`${BASE_URL}/auth/me`, { headers })).data.user;
-  console.log(`User after Match 1: Basic Points=${me.basic_points} (expected 130), Serious Points=${me.serious_points} (expected 100)`);
-  if (me.basic_points !== 130) throw new Error(`Expected basic points to be 130, got ${me.basic_points}`);
-  if (me.serious_points !== 100) throw new Error(`Expected serious points to be 100, got ${me.serious_points}`);
+  console.log(`User after Match 1: Basic Points=${me.basic_points} (expected 30), Serious Points=${me.serious_points} (expected 0)`);
+  if (me.basic_points !== 30) throw new Error(`Expected basic points to be 30, got ${me.basic_points}`);
+  if (me.serious_points !== 0) throw new Error(`Expected serious points to be 0, got ${me.serious_points}`);
 
   // Step 6: Simulate Match 2 Finishing 1-0 (Under 2.5 goals -> OVER_2.5 fails -> Set LOST!)
   console.log('\n[6] Simulating Match 2 finish: 1-0 (OVER_2.5 fails -> Set fails!)...');
@@ -83,9 +84,9 @@ async function runE2E() {
 
   // Check user after Match 2
   me = (await axios.get(`${BASE_URL}/auth/me`, { headers })).data.user;
-  console.log(`User after Match 2: Basic Points=${me.basic_points} (expected 130), Serious Points=${me.serious_points} (expected 90)`);
-  if (me.basic_points !== 130) throw new Error(`Expected basic points to remain 130, got ${me.basic_points}`);
-  if (me.serious_points !== 90) throw new Error(`Expected serious points to be deducted by 10 to 90, got ${me.serious_points}`);
+  console.log(`User after Match 2: Basic Points=${me.basic_points} (expected 30), Serious Points=${me.serious_points} (expected -10)`);
+  if (me.basic_points !== 30) throw new Error(`Expected basic points to remain 30, got ${me.basic_points}`);
+  if (me.serious_points !== -10) throw new Error(`Expected serious points to be deducted by 10 to -10, got ${me.serious_points}`);
 
   // Step 7: Inspect Points History Ledger
   console.log('\n[7] Verifying Points History Audit Ledger...');

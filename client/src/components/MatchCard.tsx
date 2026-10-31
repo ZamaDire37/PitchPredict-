@@ -1,7 +1,9 @@
 import React from 'react';
 import { Match } from '../types';
 import { useGameMode } from '../context/GameModeContext';
-import { Clock, Lock, CheckCircle2, XCircle, AlertCircle, ChevronRight, Trophy } from 'lucide-react';
+import { useTimezone } from '../context/TimezoneContext';
+import { TeamBadge } from './TeamBadge';
+import { Clock, Lock, CheckCircle2, XCircle, AlertCircle, ChevronRight, Trophy, Flame, Shield } from 'lucide-react';
 
 interface MatchCardProps {
   match: Match;
@@ -10,23 +12,15 @@ interface MatchCardProps {
 
 export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) => {
   const { mode } = useGameMode();
+  const { formatKickoffParts } = useTimezone();
   const kickoffDate = new Date(match.utc_date);
   const now = new Date();
   const isStarted = kickoffDate.getTime() <= now.getTime();
   const isFinished = match.status === 'FINISHED';
   const isLive = match.status === 'IN_PLAY' || match.status === 'PAUSED';
 
-  // Format date/time
-  const isToday = kickoffDate.toDateString() === now.toDateString();
-  const isTomorrow =
-    new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString() === kickoffDate.toDateString();
-
-  let timeDisplay = kickoffDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  let datePrefix = isToday
-    ? 'Today'
-    : isTomorrow
-    ? 'Tomorrow'
-    : kickoffDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  // Format date and time according to user's configured timezone
+  const { datePrefix, timeDisplay, tzAbbr } = formatKickoffParts(match.utc_date);
 
   // Check user predictions on this match
   const userPredictions = match.userPredictions || [];
@@ -35,14 +29,22 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
   return (
     <div
       onClick={() => !isStarted && onSelectMatch(match)}
-      className={`group relative bg-slate-900/90 rounded-2xl border transition-all duration-200 overflow-hidden shadow-lg ${
+      className={`group relative rounded-2xl border transition-all duration-300 overflow-hidden shadow-lg ${
         isStarted
-          ? 'border-slate-800/80 opacity-90 cursor-default'
-          : 'border-slate-800 hover:border-emerald-500/50 hover:shadow-emerald-500/10 hover:shadow-xl cursor-pointer hover:-translate-y-0.5'
+          ? 'border-slate-800/80 opacity-90 cursor-default bg-slate-900/90'
+          : mode === 'SERIOUS'
+          ? 'border-red-950/80 bg-[#160808]/90 hover:border-amber-500/70 hover:shadow-red-900/40 hover:shadow-2xl cursor-pointer hover:-translate-y-1'
+          : 'border-slate-800 bg-slate-900/90 hover:border-emerald-500/50 hover:shadow-emerald-500/10 hover:shadow-xl cursor-pointer hover:-translate-y-0.5'
       }`}
     >
       {/* Top Header: Competition & Kickoff / Status */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950/60 border-b border-slate-800/70 text-xs">
+      <div
+        className={`flex items-center justify-between px-4 py-2.5 border-b text-xs transition-colors ${
+          mode === 'SERIOUS'
+            ? 'bg-gradient-to-r from-red-950/80 via-slate-950/70 to-amber-950/70 border-red-900/50'
+            : 'bg-slate-950/60 border-slate-800/70'
+        }`}
+      >
         <div className="flex items-center gap-2">
           {match.competition_emblem ? (
             <img
@@ -53,11 +55,17 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
           ) : (
             <Trophy className="w-3.5 h-3.5 text-slate-400" />
           )}
-          <span className="font-semibold text-slate-300 truncate max-w-[150px] sm:max-w-[200px]">
+          <span className="font-semibold text-slate-300 truncate max-w-[140px] sm:max-w-[190px]">
             {match.competition_name}
           </span>
           <span className="text-slate-500">•</span>
           <span className="text-slate-400 text-[11px]">Matchday {match.matchday}</span>
+          {mode === 'SERIOUS' && !isStarted && (
+            <span className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/30">
+              <Flame className="w-2.5 h-2.5 text-amber-400" />
+              Set Pick
+            </span>
+          )}
         </div>
 
         {/* Status Badge */}
@@ -72,33 +80,39 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
               FT (Finished)
             </span>
           ) : (
-            <div className="flex items-center gap-1 text-slate-400 font-medium">
-              <Clock className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs">
+              <Clock className={`w-3.5 h-3.5 ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-emerald-400'}`} />
               <span>
                 {datePrefix} {timeDisplay}
               </span>
+              {tzAbbr && (
+                <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-800/80 text-slate-400 border border-slate-700/50">
+                  {tzAbbr}
+                </span>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {/* Main Card Body: Teams and Scores */}
-      <div className="p-4 sm:p-5">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+      <div className="p-3.5 sm:p-5">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
           {/* Home Team */}
           <div className="flex flex-col items-center text-center">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-800/80 p-2 flex items-center justify-center border border-slate-700/60 mb-2 shadow-inner">
-              {match.home_team_crest ? (
-                <img
-                  src={match.home_team_crest}
-                  alt={match.home_team_name}
-                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow"
-                />
-              ) : (
-                <span className="font-bold text-slate-400 text-sm">
-                  {match.home_team_short?.slice(0, 3) || 'HOM'}
-                </span>
-              )}
+            <div
+              className={`w-11 h-11 sm:w-14 sm:h-14 rounded-full p-1.5 sm:p-2 flex items-center justify-center mb-1.5 sm:mb-2 shadow-inner border transition-colors ${
+                mode === 'SERIOUS'
+                  ? 'bg-red-950/40 border-red-900/50'
+                  : 'bg-slate-800/80 border-slate-700/60'
+              }`}
+            >
+              <TeamBadge
+                name={match.home_team_name}
+                shortName={match.home_team_short}
+                crest={match.home_team_crest}
+                size="md"
+              />
             </div>
             <span className="font-bold text-slate-100 text-xs sm:text-sm line-clamp-1">
               {match.home_team_short || match.home_team_name}
@@ -107,21 +121,33 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
           </div>
 
           {/* Middle: Score or VS */}
-          <div className="flex flex-col items-center justify-center min-w-[70px]">
+          <div className="flex flex-col items-center justify-center min-w-[60px] sm:min-w-[70px]">
             {isFinished || isLive ? (
               <div className="flex flex-col items-center">
-                <div className="text-2xl sm:text-3xl font-black tracking-tight text-white px-3 py-1 bg-slate-950 rounded-xl border border-slate-800 font-mono">
+                <div
+                  className={`text-xl sm:text-3xl font-black tracking-tight text-white px-2.5 py-1 rounded-xl border font-mono ${
+                    mode === 'SERIOUS'
+                      ? 'bg-black/90 border-red-900/60 shadow-inner'
+                      : 'bg-slate-950 border-slate-800'
+                  }`}
+                >
                   {match.home_score ?? 0} - {match.away_score ?? 0}
                 </div>
                 {match.home_corners !== null && match.away_corners !== null && (
-                  <span className="text-[10px] text-slate-400 mt-1">
-                    🚩 {match.home_corners} : {match.away_corners} corners
+                  <span className="text-[9px] sm:text-[10px] text-slate-400 mt-1 whitespace-nowrap">
+                    🚩 {match.home_corners} : {match.away_corners}
                   </span>
                 )}
               </div>
             ) : (
               <div className="flex flex-col items-center">
-                <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-slate-800/70 text-slate-400 tracking-wider">
+                <span
+                  className={`text-xs font-black px-2.5 py-1 rounded-lg tracking-wider ${
+                    mode === 'SERIOUS'
+                      ? 'bg-gradient-to-r from-red-950 to-amber-950 border border-red-500/40 text-amber-300 shadow-sm'
+                      : 'bg-slate-800/70 text-slate-400'
+                  }`}
+                >
                   VS
                 </span>
               </div>
@@ -130,18 +156,19 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
 
           {/* Away Team */}
           <div className="flex flex-col items-center text-center">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-800/80 p-2 flex items-center justify-center border border-slate-700/60 mb-2 shadow-inner">
-              {match.away_team_crest ? (
-                <img
-                  src={match.away_team_crest}
-                  alt={match.away_team_name}
-                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow"
-                />
-              ) : (
-                <span className="font-bold text-slate-400 text-sm">
-                  {match.away_team_short?.slice(0, 3) || 'AWY'}
-                </span>
-              )}
+            <div
+              className={`w-11 h-11 sm:w-14 sm:h-14 rounded-full p-1.5 sm:p-2 flex items-center justify-center mb-1.5 sm:mb-2 shadow-inner border transition-colors ${
+                mode === 'SERIOUS'
+                  ? 'bg-red-950/40 border-red-900/50'
+                  : 'bg-slate-800/80 border-slate-700/60'
+              }`}
+            >
+              <TeamBadge
+                name={match.away_team_name}
+                shortName={match.away_team_short}
+                crest={match.away_team_crest}
+                size="md"
+              />
             </div>
             <span className="font-bold text-slate-100 text-xs sm:text-sm line-clamp-1">
               {match.away_team_short || match.away_team_name}
@@ -184,14 +211,14 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
         )}
 
         {/* Action Button Footer */}
-        <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between">
+        <div className="mt-3.5 pt-3 border-t border-slate-800/60 flex flex-col xs:flex-row xs:items-center justify-between gap-2.5">
           <div className="text-[11px] text-slate-400">
             {match.prediction_count ? `${match.prediction_count} community prediction(s)` : 'Be first to predict'}
           </div>
 
-          <div>
+          <div className="w-full xs:w-auto">
             {isStarted ? (
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+              <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 w-full xs:w-auto">
                 <Lock className="w-3.5 h-3.5" />
                 <span>Locked (Match Started)</span>
               </div>
@@ -201,13 +228,23 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
                   e.stopPropagation();
                   onSelectMatch(match);
                 }}
-                className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all shadow-md ${
+                className={`w-full xs:w-auto flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2.5 sm:py-1.5 rounded-xl transition-all shadow-md min-h-[42px] sm:min-h-0 ${
                   mode === 'BASIC'
-                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                    : 'bg-gradient-to-r from-amber-500 to-red-500 hover:from-amber-400 hover:to-red-400 text-white shadow-amber-500/20'
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'
+                    : 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-white shadow-lg shadow-red-500/30 active:scale-95'
                 }`}
               >
-                <span>{activeModePredictions.length > 0 ? 'Edit Prediction' : 'Predict Match'}</span>
+                {mode === 'SERIOUS' ? (
+                  <>
+                    <Flame className="w-3.5 h-3.5 text-amber-200" />
+                    <span>{activeModePredictions.length > 0 ? 'Edit Serious Pick' : '+ Add to Serious Set'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-3.5 h-3.5 text-slate-950" />
+                    <span>{activeModePredictions.length > 0 ? 'Edit Prediction' : 'Predict Match'}</span>
+                  </>
+                )}
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}

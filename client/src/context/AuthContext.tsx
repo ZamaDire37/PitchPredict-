@@ -59,10 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const guestLogin = async () => {
-    const res = await api.guestLogin();
-    localStorage.setItem('fp_token', res.token);
-    setToken(res.token);
-    setUser(res.user);
+    throw new Error('Official account registration is required to place verified predictions. Please Sign Up.');
   };
 
   const logout = () => {

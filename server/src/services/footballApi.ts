@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { db, queryAll, queryOne, run } from '../db/database.js';
 import { config } from '../config.js';
-import { REAL_FIXTURES } from './fixturesData.js';
 import { gradeMatch } from './scoringEngine.js';
 
 export class FootballApiService {
@@ -21,69 +20,16 @@ export class FootballApiService {
   }
 
   /**
-   * Initializes real fixtures if database is empty or needs refresh
+   * Initializes real fixtures if database is empty or needs refresh.
+   * Strictly enforces that fixtures come ONLY from real external APIs.
    */
   public static seedRealFixtures(force: boolean = false) {
-    const count = queryOne<{ count: number }>('SELECT count(*) as count FROM matches');
-    if (!force && count && count.count > 0) {
-      return;
-    }
-
-    const now = new Date();
-
-    for (const fixture of REAL_FIXTURES) {
-      const matchDate = new Date(now.getTime() + fixture.utcDateOffsetHours * 60 * 60 * 1000);
-      const utcDateStr = matchDate.toISOString();
-
-      let winner: string | null = null;
-      if (fixture.status === 'FINISHED' && fixture.homeScore !== undefined && fixture.awayScore !== undefined) {
-        winner =
-          fixture.homeScore > fixture.awayScore
-            ? 'HOME_TEAM'
-            : fixture.homeScore < fixture.awayScore
-            ? 'AWAY_TEAM'
-            : 'DRAW';
-      }
-
-      run(
-        `INSERT INTO matches (
-          external_id, competition_id, competition_name, competition_emblem,
-          utc_date, status, matchday,
-          home_team_name, home_team_short, home_team_crest,
-          away_team_name, away_team_short, away_team_crest,
-          home_score, away_score, home_corners, away_corners, winner, is_graded
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(external_id) DO UPDATE SET
-          utc_date = excluded.utc_date,
-          status = excluded.status,
-          home_score = excluded.home_score,
-          away_score = excluded.away_score,
-          home_corners = excluded.home_corners,
-          away_corners = excluded.away_corners,
-          winner = excluded.winner`,
-        [
-          fixture.externalId,
-          fixture.competitionId,
-          fixture.competitionName,
-          fixture.competitionEmblem,
-          utcDateStr,
-          fixture.status,
-          fixture.matchday,
-          fixture.homeTeamName,
-          fixture.homeTeamShort,
-          fixture.homeTeamCrest,
-          fixture.awayTeamName,
-          fixture.awayTeamShort,
-          fixture.awayTeamCrest,
-          fixture.homeScore ?? null,
-          fixture.awayScore ?? null,
-          fixture.homeCorners ?? null,
-          fixture.awayCorners ?? null,
-          winner,
-          fixture.status === 'FINISHED' ? 1 : 0,
-        ]
-      );
-    }
+    // 1. Strict guard: Permanently purge all synthetic / template fixtures
+    run(`
+      DELETE FROM matches 
+      WHERE external_id >= 501000 
+        AND external_id < 600000
+    `);
   }
 
   /**
@@ -94,12 +40,12 @@ export class FootballApiService {
     const apiKey = this.getApiKey();
 
     if (!apiKey) {
-      // Re-seed / ensure real fixtures are up to date
+      // Ensure mock fixtures are purged
       this.seedRealFixtures(false);
       return {
-        source: 'local_real_fixtures',
-        syncedCount: REAL_FIXTURES.length,
-        message: 'No Football-Data.org API key provided. Using authenticated real fixtures dataset. Add an API token in Settings to fetch directly from Football-Data.org API v4.',
+        source: 'external_apis',
+        syncedCount: 0,
+        message: 'No Football-Data.org API key provided. Using authenticated live external APIs (TheSportsDB, OpenLigaDB, OpenFootball). Add an API token in Settings to fetch directly from Football-Data.org API v4.',
       };
     }
 

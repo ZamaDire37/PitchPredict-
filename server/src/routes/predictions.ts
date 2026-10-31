@@ -13,6 +13,10 @@ router.post('/basic', authMiddleware, (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: 'Please provide at least one prediction.' });
     }
 
+    if (predictions.length > 10) {
+      return res.status(400).json({ error: 'In Basic Mode, there is a limit of 10 selections that users can make.' });
+    }
+
     const results = PredictionService.createBasicPredictions(req.user!.id, predictions);
     res.json({
       success: true,
@@ -30,9 +34,9 @@ router.post('/serious-set', authMiddleware, (req: AuthenticatedRequest, res) => 
   try {
     const { name, predictions } = req.body;
 
-    if (!predictions || !Array.isArray(predictions) || predictions.length < 2) {
+    if (!predictions || !Array.isArray(predictions) || predictions.length < 1) {
       return res.status(400).json({
-        error: 'Serious Mode requires grouping at least 2 predictions into a set.',
+        error: 'Serious Mode requires selecting at least 1 prediction for your set. Users can add as many selections as they want!',
       });
     }
 
@@ -45,6 +49,56 @@ router.post('/serious-set', authMiddleware, (req: AuthenticatedRequest, res) => 
   } catch (err: any) {
     console.error('Create serious set error:', err.message);
     res.status(400).json({ error: err.message || 'Failed to create Serious Mode set.' });
+  }
+});
+
+// GET /api/predictions/community - feed of other users' predictions
+router.get('/community', (req, res) => {
+  try {
+    const { mode, status, limit = 60 } = req.query as {
+      mode?: 'BASIC' | 'SERIOUS';
+      status?: string;
+      limit?: string | number;
+    };
+    const predictions = PredictionService.getCommunityPredictions(
+      mode,
+      status,
+      parseInt(limit as string, 10) || 60
+    );
+    res.json({ predictions });
+  } catch (err: any) {
+    console.error('Get community predictions error:', err);
+    res.status(500).json({ error: 'Failed to retrieve community predictions.' });
+  }
+});
+
+// GET /api/predictions/user/:userId - full public profile and past predictions of any user
+router.get('/user/:userId', (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId as string, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    const profile = PredictionService.getUserProfile(userId);
+    res.json(profile);
+  } catch (err: any) {
+    console.error('Get user profile error:', err.message);
+    res.status(404).json({ error: err.message || 'User not found.' });
+  }
+});
+
+// GET /api/predictions/match/:matchId - community predictions made on a specific match
+router.get('/match/:matchId', (req, res) => {
+  try {
+    const matchId = parseInt(req.params.matchId as string, 10);
+    if (isNaN(matchId)) {
+      return res.status(400).json({ error: 'Invalid match ID' });
+    }
+    const predictions = PredictionService.getMatchCommunityPredictions(matchId);
+    res.json({ predictions });
+  } catch (err: any) {
+    console.error('Get match predictions error:', err);
+    res.status(500).json({ error: 'Failed to retrieve match predictions.' });
   }
 });
 

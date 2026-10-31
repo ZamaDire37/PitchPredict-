@@ -6,7 +6,8 @@ interface GameModeContextType {
   setMode: (mode: GameMode) => void;
   stagedPredictions: StagedPrediction[];
   addStagedPrediction: (item: StagedPrediction) => void;
-  removeStagedPrediction: (matchId: number, marketType: string) => void;
+  toggleStagedPrediction: (item: StagedPrediction) => void;
+  removeStagedPrediction: (matchId: number, marketType: string, selection?: string) => void;
   clearStagedPredictions: () => void;
   isStaged: (matchId: number, marketType: string, selection: string) => boolean;
 }
@@ -28,17 +29,53 @@ export const GameModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const addStagedPrediction = (item: StagedPrediction) => {
     setStagedPredictions((prev) => {
-      // If already staged for this match & market, replace it; else append
-      const filtered = prev.filter(
-        (p) => !(p.match.id === item.match.id && p.marketType === item.marketType)
+      // If exact same pick already exists, keep it; otherwise append (unlimited selections)
+      const exists = prev.some(
+        (p) =>
+          p.match.id === item.match.id &&
+          p.marketType === item.marketType &&
+          p.selection === item.selection
       );
-      return [...filtered, item];
+      if (exists) return prev;
+      return [...prev, item];
     });
   };
 
-  const removeStagedPrediction = (matchId: number, marketType: string) => {
+  const toggleStagedPrediction = (item: StagedPrediction) => {
+    setStagedPredictions((prev) => {
+      const exists = prev.some(
+        (p) =>
+          p.match.id === item.match.id &&
+          p.marketType === item.marketType &&
+          p.selection === item.selection
+      );
+      if (exists) {
+        // Deselect / Remove
+        return prev.filter(
+          (p) =>
+            !(
+              p.match.id === item.match.id &&
+              p.marketType === item.marketType &&
+              p.selection === item.selection
+            )
+        );
+      } else {
+        // Append - users can make as many selections as they want!
+        return [...prev, item];
+      }
+    });
+  };
+
+  const removeStagedPrediction = (matchId: number, marketType: string, selection?: string) => {
     setStagedPredictions((prev) =>
-      prev.filter((p) => !(p.match.id === matchId && p.marketType === marketType))
+      prev.filter(
+        (p) =>
+          !(
+            p.match.id === matchId &&
+            p.marketType === marketType &&
+            (selection === undefined || p.selection === selection)
+          )
+      )
     );
   };
 
@@ -59,6 +96,7 @@ export const GameModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setMode,
         stagedPredictions,
         addStagedPrediction,
+        toggleStagedPrediction,
         removeStagedPrediction,
         clearStagedPredictions,
         isStaged,

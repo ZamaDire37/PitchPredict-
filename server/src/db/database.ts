@@ -28,12 +28,14 @@ export function initDatabase() {
       username TEXT NOT NULL UNIQUE COLLATE NOCASE,
       email TEXT NOT NULL UNIQUE COLLATE NOCASE,
       password_hash TEXT NOT NULL,
-      basic_points INTEGER NOT NULL DEFAULT 100,
-      serious_points INTEGER NOT NULL DEFAULT 100,
+      basic_points INTEGER NOT NULL DEFAULT 0,
+      serious_points INTEGER NOT NULL DEFAULT 0,
       basic_streak INTEGER NOT NULL DEFAULT 0,
       basic_best_streak INTEGER NOT NULL DEFAULT 0,
       serious_streak INTEGER NOT NULL DEFAULT 0,
       serious_best_streak INTEGER NOT NULL DEFAULT 0,
+      is_verified INTEGER NOT NULL DEFAULT 1,
+      account_type TEXT NOT NULL DEFAULT 'OFFICIAL',
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -61,6 +63,7 @@ export function initDatabase() {
       home_corners INTEGER,
       away_corners INTEGER,
       winner TEXT, -- HOME_TEAM, AWAY_TEAM, DRAW
+      data_source TEXT,
       is_graded INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -94,6 +97,7 @@ export function initDatabase() {
       status TEXT NOT NULL DEFAULT 'PENDING', -- PENDING, CORRECT, INCORRECT, VOID
       actual_result TEXT,
       points_awarded INTEGER NOT NULL DEFAULT 0,
+      is_verified_account INTEGER NOT NULL DEFAULT 1,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       resolved_at DATETIME
     );
@@ -128,7 +132,56 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_points_history_user_id ON points_history(user_id);
     CREATE INDEX IF NOT EXISTS idx_serious_sets_user_id ON serious_sets(user_id);
   `);
+
+  // Safe runtime migrations for existing databases
+  try {
+    const tableInfo = queryOne<{ sql: string }>("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'");
+    if (tableInfo && tableInfo.sql.includes('DEFAULT 100')) {
+      db.exec(`
+        PRAGMA foreign_keys = OFF;
+        CREATE TABLE users_migrated (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+          email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+          password_hash TEXT NOT NULL,
+          basic_points INTEGER NOT NULL DEFAULT 0,
+          serious_points INTEGER NOT NULL DEFAULT 0,
+          basic_streak INTEGER NOT NULL DEFAULT 0,
+          basic_best_streak INTEGER NOT NULL DEFAULT 0,
+          serious_streak INTEGER NOT NULL DEFAULT 0,
+          serious_best_streak INTEGER NOT NULL DEFAULT 0,
+          is_verified INTEGER NOT NULL DEFAULT 1,
+          account_type TEXT NOT NULL DEFAULT 'OFFICIAL',
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO users_migrated (id, username, email, password_hash, basic_points, serious_points, basic_streak, basic_best_streak, serious_streak, serious_best_streak, is_verified, account_type, created_at, updated_at)
+        SELECT id, username, email, password_hash, basic_points, serious_points, basic_streak, basic_best_streak, serious_streak, serious_best_streak, is_verified, account_type, created_at, updated_at FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_migrated RENAME TO users;
+        PRAGMA foreign_keys = ON;
+      `);
+    }
+  } catch (e) {
+    console.warn('Migration users table error:', e);
+  }
+
+  try {
+    db.exec('ALTER TABLE matches ADD COLUMN data_source TEXT;');
+  } catch {}
+  try {
+    db.exec('ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 1;');
+  } catch {}
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN account_type TEXT NOT NULL DEFAULT 'OFFICIAL';");
+  } catch {}
+  try {
+    db.exec('ALTER TABLE predictions ADD COLUMN is_verified_account INTEGER NOT NULL DEFAULT 1;');
+  } catch {}
 }
+
+// Auto-initialize schema and run migrations
+initDatabase();
 
 export function queryAll<T = any>(sql: string, params: any[] = []): T[] {
   const stmt = db.prepare(sql);

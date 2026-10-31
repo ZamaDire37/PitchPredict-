@@ -89,19 +89,19 @@ export const MatchSimModal: React.FC<MatchSimModalProps> = ({ matches, onClose, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-hidden">
+      <div className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[88vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-950/60">
+        <div className="shrink-0 flex items-center justify-between p-3.5 sm:p-5 border-b border-slate-800 bg-slate-950/60">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
               <Sliders className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-white">
+              <h2 className="text-sm sm:text-lg font-black text-white">
                 Match Simulator & Grader
               </h2>
-              <p className="text-xs text-slate-400">Interactive live grading testbed & API key setup</p>
+              <p className="text-[11px] sm:text-xs text-slate-400">Live grading testbed & API key setup</p>
             </div>
           </div>
           <button
@@ -112,7 +112,7 @@ export const MatchSimModal: React.FC<MatchSimModalProps> = ({ matches, onClose, 
           </button>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto text-xs">
+        <div className="flex-1 p-4 sm:p-6 space-y-5 overflow-y-auto overscroll-contain text-xs pb-6">
           {/* Section 1: Match Score Simulator */}
           <div className="space-y-3">
             <h3 className="font-bold text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
@@ -284,10 +284,10 @@ export const MatchSimModal: React.FC<MatchSimModalProps> = ({ matches, onClose, 
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-end">
+        <div className="shrink-0 p-3.5 sm:p-4 border-t border-slate-800 bg-slate-950 flex justify-end pb-safe">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors min-h-[40px] sm:min-h-0"
           >
             Close
           </button>

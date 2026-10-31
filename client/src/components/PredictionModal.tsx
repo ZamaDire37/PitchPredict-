@@ -14,6 +14,7 @@ import {
   Sparkles,
   Info,
   ChevronDown,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface PredictionModalProps {
@@ -21,6 +22,7 @@ interface PredictionModalProps {
   onClose: () => void;
   onSuccess: () => void;
   onOpenAuth: () => void;
+  onOpenRules?: (tab?: 'RULES' | 'ODDS') => void;
 }
 
 export const PredictionModal: React.FC<PredictionModalProps> = ({
@@ -28,6 +30,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
   onClose,
   onSuccess,
   onOpenAuth,
+  onOpenRules,
 }) => {
   const { mode, addStagedPrediction, stagedPredictions } = useGameMode();
   const { isAuthenticated, refreshUser } = useAuth();
@@ -200,6 +203,28 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
         </div>
 
         <div className="p-4 sm:p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          {/* Guest User Callout */}
+          {!isAuthenticated && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-xs shadow-inner">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-white">Viewing Match Markets as Guest</span>
+                  <p className="text-[11px] text-slate-400">Fixtures, odds and head-to-head stats are open. Create an account or sign in to submit predictions.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md transition-all whitespace-nowrap"
+              >
+                Sign In / Register
+              </button>
+            </div>
+          )}
+
           {/* Instruction Note */}
           <div className="flex items-start gap-2 p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400">
             <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
@@ -487,31 +512,42 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
               Cancel
             </button>
 
-            <button
-              onClick={handleSubmit}
-              disabled={!selectedSelection || submitting || isStarted}
-              className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-1.5 ${
-                !selectedSelection || isStarted
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
-                  : mode === 'BASIC'
-                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                  : 'bg-gradient-to-r from-amber-500 to-red-500 hover:from-amber-400 hover:to-red-400 text-white shadow-amber-500/20'
-              }`}
-            >
-              {submitting ? (
-                <span>Submitting...</span>
-              ) : mode === 'BASIC' ? (
-                <>
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Submit Basic Prediction</span>
-                </>
-              ) : (
-                <>
-                  <Flame className="w-3.5 h-3.5" />
-                  <span>Add to Serious Set</span>
-                </>
-              )}
-            </button>
+            {!isAuthenticated ? (
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Sign In to Place Prediction</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!selectedSelection || submitting || isStarted}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-1.5 ${
+                  !selectedSelection || isStarted
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
+                    : mode === 'BASIC'
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
+                    : 'bg-gradient-to-r from-amber-500 to-red-500 hover:from-amber-400 hover:to-red-400 text-white shadow-amber-500/20'
+                }`}
+              >
+                {submitting ? (
+                  <span>Submitting...</span>
+                ) : mode === 'BASIC' ? (
+                  <>
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Submit Basic Prediction</span>
+                  </>
+                ) : (
+                  <>
+                    <Flame className="w-3.5 h-3.5" />
+                    <span>Add to Serious Set</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>

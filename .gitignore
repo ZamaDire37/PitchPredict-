@@ -1,8 +1,14 @@
 node_modules/
 dist/
+build/
 *.log
 .env
-data/*.db
-data/*.db-wal
-data/*.db-shm
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+**/data/*.db
+**/data/*.db-wal
+**/data/*.db-shm
 .DS_Store

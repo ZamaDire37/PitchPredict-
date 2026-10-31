@@ -1,5 +1,6 @@
 import { db, queryAll, queryOne, run } from '../db/database.js';
 import { getMarketDefinition } from './marketRegistry.js';
+import { syncPredictionToSupabase } from '../db/supabaseClient.js';
 
 export interface CreatePredictionItem {
   matchId: number;
@@ -70,12 +71,42 @@ export class PredictionService {
 
   /**
    * Create a single or multiple Basic Mode predictions.
+   * In Basic Mode, users can only have 10 selections per day (resets daily at 00:00 UTC).
    * If a prediction for the same match and market already exists for this user and is still PENDING,
-   * we update the selection (or allow them to update prior to kickoff).
+   * we update the selection without consuming an additional daily slot.
    */
   public static createBasicPredictions(userId: number, items: CreatePredictionItem[]) {
     if (!items || items.length === 0) {
       throw new Error('No predictions submitted');
+    }
+
+    if (items.length > 10) {
+      throw new Error('In Basic Mode, users can only have 10 selections per day (limit of 10 selections).');
+    }
+
+    // Check user's current Basic predictions created today (UTC day)
+    const dailyRow = queryOne<{ count: number }>(
+      "SELECT COUNT(*) as count FROM predictions WHERE user_id = ? AND mode = 'BASIC' AND date(created_at) = date('now')",
+      [userId]
+    );
+    const currentDailyCount = dailyRow ? dailyRow.count : 0;
+
+    // Determine how many items are NEW predictions vs updates to existing pending predictions
+    let newSelectionsCount = 0;
+    for (const item of items) {
+      const existing = queryOne<{ id: number; status: string }>(
+        "SELECT id, status FROM predictions WHERE user_id = ? AND match_id = ? AND market_type = ? AND mode = 'BASIC'",
+        [userId, item.matchId, item.marketType]
+      );
+      if (!existing || existing.status !== 'PENDING') {
+        newSelectionsCount++;
+      }
+    }
+
+    if (currentDailyCount + newSelectionsCount > 10) {
+      throw new Error(
+        `In Basic Mode, users can only have 10 selections per day (limit of 10 selections). You have already made ${currentDailyCount} selection(s) today and are attempting to add ${newSelectionsCount} new pick(s) (total ${currentDailyCount + newSelectionsCount} exceeds the daily limit of 10). Your daily limit resets at 00:00 UTC.`
+      );
     }
 
     const results = [];
@@ -94,20 +125,41 @@ export class PredictionService {
         if (existing.status !== 'PENDING') {
           throw new Error(`Prediction #${existing.id} has already been graded.`);
         }
-        // Update selection
+        // Update selection without resetting original creation date
         run(
-          'UPDATE predictions SET selection = ?, odds_points = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?',
+          'UPDATE predictions SET selection = ?, odds_points = ?, is_verified_account = 1 WHERE id = ?',
           [item.selection, oddsPoints, existing.id]
         );
+        syncPredictionToSupabase({
+          id: existing.id,
+          user_id: userId,
+          match_id: item.matchId,
+          mode: 'BASIC',
+          market_type: item.marketType,
+          selection: item.selection,
+          odds_points: oddsPoints,
+          status: 'PENDING',
+        }).catch(() => {});
         results.push({ id: existing.id, updated: true, matchId: item.matchId, marketType: item.marketType, selection: item.selection, oddsPoints });
       } else {
         // Insert new
         const insertRes = run(
-          `INSERT INTO predictions (user_id, match_id, mode, market_type, selection, odds_points, status)
-           VALUES (?, ?, 'BASIC', ?, ?, ?, 'PENDING')`,
+          `INSERT INTO predictions (user_id, match_id, mode, market_type, selection, odds_points, status, is_verified_account)
+           VALUES (?, ?, 'BASIC', ?, ?, ?, 'PENDING', 1)`,
           [userId, item.matchId, item.marketType, item.selection, oddsPoints]
         );
-        results.push({ id: insertRes.lastInsertRowid, updated: false, matchId: item.matchId, marketType: item.marketType, selection: item.selection, oddsPoints });
+        const newId = insertRes.lastInsertRowid;
+        syncPredictionToSupabase({
+          id: newId,
+          user_id: userId,
+          match_id: item.matchId,
+          mode: 'BASIC',
+          market_type: item.marketType,
+          selection: item.selection,
+          odds_points: oddsPoints,
+          status: 'PENDING',
+        }).catch(() => {});
+        results.push({ id: newId, updated: false, matchId: item.matchId, marketType: item.marketType, selection: item.selection, oddsPoints });
       }
     }
 
@@ -116,11 +168,12 @@ export class PredictionService {
 
   /**
    * Create a Serious Mode Set (grouped predictions).
+   * Users can make as many selections as they want (1, 2, 5, 10, 20+ picks).
    * All predictions in the set must be for matches that have not started.
    */
   public static createSeriousSet(userId: number, setName: string, items: CreatePredictionItem[]) {
-    if (!items || items.length < 2) {
-      throw new Error('Serious Mode sets require at least 2 predictions.');
+    if (!items || items.length < 1) {
+      throw new Error('Serious Mode sets require at least 1 prediction. You can add as many selections as you want!');
     }
 
     const trimmedName = setName?.trim() || `Serious Set (${items.length} picks)`;
@@ -152,11 +205,22 @@ export class PredictionService {
 
     // Insert the predictions linked to this set
     for (const val of validatedItems) {
-      run(
-        `INSERT INTO predictions (user_id, match_id, mode, serious_set_id, market_type, selection, odds_points, status)
-         VALUES (?, ?, 'SERIOUS', ?, ?, ?, ?, 'PENDING')`,
+      const predRes = run(
+        `INSERT INTO predictions (user_id, match_id, mode, serious_set_id, market_type, selection, odds_points, status, is_verified_account)
+         VALUES (?, ?, 'SERIOUS', ?, ?, ?, ?, 'PENDING', 1)`,
         [userId, val.matchId, setId, val.marketType, val.selection, val.oddsPoints]
       );
+      syncPredictionToSupabase({
+        id: predRes.lastInsertRowid,
+        user_id: userId,
+        match_id: val.matchId,
+        mode: 'SERIOUS',
+        serious_set_id: setId,
+        market_type: val.marketType,
+        selection: val.selection,
+        odds_points: val.oddsPoints,
+        status: 'PENDING',
+      }).catch(() => {});
     }
 
     return {
@@ -236,5 +300,129 @@ export class PredictionService {
       ...s,
       predictions: predsBySet[s.id] || [],
     }));
+  }
+
+  /**
+   * Get full public profile and past predictions for a specific user.
+   */
+  public static getUserProfile(userId: number) {
+    const user = queryOne<{
+      id: number;
+      username: string;
+      basic_points: number;
+      serious_points: number;
+      basic_streak: number;
+      basic_best_streak: number;
+      serious_streak: number;
+      serious_best_streak: number;
+      created_at: string;
+    }>(
+      `SELECT id, username, basic_points, serious_points,
+              basic_streak, basic_best_streak, serious_streak, serious_best_streak,
+              created_at
+       FROM users
+       WHERE id = ?`,
+      [userId]
+    );
+
+    if (!user) {
+      throw new Error(`User #${userId} not found`);
+    }
+
+    const predictions = this.getUserPredictions(userId);
+    const seriousSets = this.getUserSeriousSets(userId);
+
+    const correctCount = predictions.filter((p: any) => p.status === 'CORRECT').length;
+    const incorrectCount = predictions.filter((p: any) => p.status === 'INCORRECT').length;
+    const pendingCount = predictions.filter((p: any) => p.status === 'PENDING').length;
+    const totalResolved = correctCount + incorrectCount;
+    const winRate = totalResolved > 0 ? Math.round((correctCount / totalResolved) * 100) : 0;
+
+    const wonSets = seriousSets.filter((s: any) => s.status === 'WON').length;
+    const lostSets = seriousSets.filter((s: any) => s.status === 'LOST').length;
+
+    // Rank in basic and serious leaderboards
+    const basicRankRow = queryOne<{ rank: number }>(
+      `SELECT count(*) + 1 as rank FROM users WHERE basic_points > ?`,
+      [user.basic_points]
+    );
+    const seriousRankRow = queryOne<{ rank: number }>(
+      `SELECT count(*) + 1 as rank FROM users WHERE serious_points > ?`,
+      [user.serious_points]
+    );
+
+    return {
+      user: {
+        ...user,
+        basicRank: basicRankRow?.rank || 1,
+        seriousRank: seriousRankRow?.rank || 1,
+      },
+      stats: {
+        totalPredictions: predictions.length,
+        correctCount,
+        incorrectCount,
+        pendingCount,
+        winRate,
+        totalSets: seriousSets.length,
+        wonSets,
+        lostSets,
+      },
+      predictions,
+      seriousSets,
+    };
+  }
+
+  /**
+   * Get community feed of other users' predictions across all matches.
+   */
+  public static getCommunityPredictions(mode?: 'BASIC' | 'SERIOUS', status?: string, limit: number = 60) {
+    let sql = `
+      SELECT p.*,
+             u.username, u.basic_points, u.serious_points, u.basic_streak, u.serious_streak,
+             m.home_team_name, m.home_team_short, m.home_team_crest,
+             m.away_team_name, m.away_team_short, m.away_team_crest,
+             m.competition_name, m.competition_emblem,
+             m.utc_date as match_date, m.status as match_status,
+             m.home_score, m.away_score, m.home_corners, m.away_corners,
+             s.name as set_name, s.status as set_status, s.points_delta as set_points_delta
+      FROM predictions p
+      JOIN users u ON p.user_id = u.id
+      JOIN matches m ON p.match_id = m.id
+      LEFT JOIN serious_sets s ON p.serious_set_id = s.id
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (mode) {
+      sql += ' AND p.mode = ?';
+      params.push(mode);
+    }
+
+    if (status && status !== 'ALL') {
+      sql += ' AND p.status = ?';
+      params.push(status);
+    }
+
+    sql += ' ORDER BY COALESCE(p.resolved_at, p.created_at) DESC LIMIT ?';
+    params.push(limit);
+
+    return queryAll(sql, params);
+  }
+
+  /**
+   * Get all predictions made by any user on a specific match.
+   */
+  public static getMatchCommunityPredictions(matchId: number) {
+    return queryAll(
+      `SELECT p.*,
+              u.username, u.basic_points, u.serious_points,
+              s.name as set_name, s.status as set_status
+       FROM predictions p
+       JOIN users u ON p.user_id = u.id
+       LEFT JOIN serious_sets s ON p.serious_set_id = s.id
+       WHERE p.match_id = ?
+       ORDER BY p.created_at DESC`,
+      [matchId]
+    );
   }
 }

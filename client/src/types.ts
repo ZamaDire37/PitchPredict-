@@ -10,7 +10,21 @@ export interface User {
   basic_best_streak: number;
   serious_streak: number;
   serious_best_streak: number;
+  basic_pending_count?: number;
+  basic_daily_count?: number;
+  is_verified?: boolean;
+  account_type?: string;
   created_at?: string;
+}
+
+export interface DatabaseDiagnostics {
+  provider: string;
+  status: 'CONNECTED' | 'NOT_CONFIGURED' | 'ERROR';
+  isConfigured: boolean;
+  url?: string;
+  lastSyncTime?: string | null;
+  matchCount?: number;
+  error?: string | null;
 }
 
 export interface Match {
@@ -120,4 +134,40 @@ export interface StagedPrediction {
   marketType: string;
   selection: string;
   oddsPoints: number;
+}
+
+export interface CommunityPrediction extends Prediction {
+  username: string;
+  basic_points: number;
+  serious_points: number;
+  basic_streak: number;
+  serious_streak: number;
+}
+
+export interface UserProfileData {
+  user: {
+    id: number;
+    username: string;
+    basic_points: number;
+    serious_points: number;
+    basic_streak: number;
+    basic_best_streak: number;
+    serious_streak: number;
+    serious_best_streak: number;
+    created_at: string;
+    basicRank?: number;
+    seriousRank?: number;
+  };
+  stats: {
+    totalPredictions: number;
+    correctCount: number;
+    incorrectCount: number;
+    pendingCount: number;
+    winRate: number;
+    totalSets: number;
+    wonSets: number;
+    lostSets: number;
+  };
+  predictions: Prediction[];
+  seriousSets: SeriousSet[];
 }

@@ -43,11 +43,58 @@ async function runTests() {
   assert(evaluatePrediction('BTTS', 'NO', { homeScore: 2, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'BTTS NO correct on 2-0');
   assert(evaluatePrediction('BTTS', 'YES', { homeScore: 2, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === false, 'BTTS YES false on 2-0');
 
+  // Draw No Bet
+  assert(evaluatePrediction('DRAW_NO_BET', 'HOME_DNB', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'DNB HOME correct on 2-1');
+  assert(evaluatePrediction('DRAW_NO_BET', 'AWAY_DNB', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === false, 'DNB AWAY false on 2-1');
+
+  // Match Result & Total Goals Combo
+  assert(evaluatePrediction('MATCH_RESULT_AND_TOTAL_GOALS', 'HOME_OVER_2.5', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Result + O2.5 correct on 2-1');
+  assert(evaluatePrediction('MATCH_RESULT_AND_TOTAL_GOALS', 'HOME_UNDER_2.5', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === false, 'Result + U2.5 false on 2-1');
+  assert(evaluatePrediction('MATCH_RESULT_AND_TOTAL_GOALS', 'DRAW_UNDER_2.5', { homeScore: 1, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Draw + U2.5 correct on 1-1');
+
+  // European Handicap (-1)
+  assert(evaluatePrediction('HANDICAP_RESULT', 'HOME_MINUS_1', { homeScore: 3, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Handicap HOME -1 correct on 3-1');
+  assert(evaluatePrediction('HANDICAP_RESULT', 'HANDICAP_TIE', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Handicap DRAW -1 correct on 2-1');
+  assert(evaluatePrediction('HANDICAP_RESULT', 'AWAY_PLUS_1', { homeScore: 1, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Handicap AWAY +1 correct on 1-1');
+
+  // Goals & Corners Ranges
+  assert(evaluatePrediction('HOME_TEAM_GOALS', 'HOME_OVER_1.5', { homeScore: 2, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Home team goals Over 1.5 correct on 2');
+  assert(evaluatePrediction('AWAY_TEAM_GOALS', 'AWAY_UNDER_0.5', { homeScore: 2, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Away team goals Under 0.5 correct on 0');
+  assert(evaluatePrediction('EXACT_TOTAL_GOALS', '3_GOALS', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Exact total goals 3 correct on 2-1');
+  assert(evaluatePrediction('TOTAL_GOALS_RANGE', '2-3_GOALS', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Total goals range 2-3 correct on 3 goals');
+  assert(evaluatePrediction('ODD_EVEN_GOALS', 'ODD', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Odd/Even ODD correct on 3 goals');
+  assert(evaluatePrediction('ODD_EVEN_GOALS', 'EVEN', { homeScore: 2, awayScore: 2, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Odd/Even EVEN correct on 4 goals');
+
+  // BTTS Combos & Margins
+  assert(evaluatePrediction('BTTS_AND_WIN', 'BTTS_YES_HOME', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'BTTS & Win HOME_AND_YES correct on 2-1');
+  assert(evaluatePrediction('BTTS_AND_OVER_UNDER', 'BTTS_YES_OVER_2.5', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'BTTS & O2.5 correct on 2-1');
+  assert(evaluatePrediction('BTTS_OR_OVER_2_5', 'BTTS_OR_OVER_YES', { homeScore: 3, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'BTTS or Over 2.5 YES correct on 3-0');
+  assert(evaluatePrediction('WIN_TO_NIL', 'HOME_WIN_TO_NIL', { homeScore: 2, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Win to nil HOME correct on 2-0');
+  assert(evaluatePrediction('TEAM_TO_SCORE', 'ONLY_HOME_SCORES', { homeScore: 2, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Team to score ONLY_HOME correct on 2-0');
+  assert(evaluatePrediction('CLEAN_SHEET_HOME', 'HOME_CS_YES', { homeScore: 1, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Clean sheet home YES on 1-0');
+  assert(evaluatePrediction('CLEAN_SHEET_AWAY', 'AWAY_CS_NO', { homeScore: 1, awayScore: 0, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Clean sheet away NO on 1-0');
+  assert(evaluatePrediction('WINNING_MARGIN', 'HOME_BY_1', { homeScore: 2, awayScore: 1, homeCorners: 0, awayCorners: 0 }).isCorrect === true, 'Winning margin HOME_BY_1 correct on 2-1');
+
+  // Corners Special
+  assert(evaluatePrediction('MOST_CORNERS', 'HOME_MOST_CORNERS', { homeScore: 0, awayScore: 0, homeCorners: 6, awayCorners: 3 }).isCorrect === true, 'Most corners HOME on 6-3');
+  assert(evaluatePrediction('TOTAL_CORNERS_RANGE', '8-11_CORNERS', { homeScore: 0, awayScore: 0, homeCorners: 6, awayCorners: 4 }).isCorrect === true, 'Corners range 8-11 on 10 corners');
+
   console.log('\n--- Testing Basic Mode vs Serious Mode in Database ---');
-  // Create a dedicated test user
+  // 1. Verify all new users start at 0 points
+  const defaultUserRes = run(
+    `INSERT INTO users (username, email, password_hash)
+     VALUES (?, ?, 'hash')`,
+    [`default_user_${Date.now()}`, `default_${Date.now()}@test.com`]
+  );
+  const defaultUserId = defaultUserRes.lastInsertRowid;
+  const defaultUser = queryOne<any>('SELECT * FROM users WHERE id = ?', [defaultUserId]);
+  assert(defaultUser.basic_points === 0, 'New user defaults to 0 Basic Points');
+  assert(defaultUser.serious_points === 0, 'New user defaults to 0 Serious Points');
+
+  // Create a dedicated test user starting at 0 points
   const testUserRes = run(
     `INSERT INTO users (username, email, password_hash, basic_points, serious_points)
-     VALUES (?, ?, 'hash', 100, 100)`,
+     VALUES (?, ?, 'hash', 0, 0)`,
     [`test_bot_${Date.now()}`, `bot_${Date.now()}@test.com`]
   );
   const testUserId = testUserRes.lastInsertRowid;
@@ -82,8 +129,8 @@ async function runTests() {
   gradeMatch(match1Id);
 
   let user = queryOne<any>('SELECT * FROM users WHERE id = ?', [testUserId]);
-  assert(user.basic_points === 110, `Basic points increased from 100 to 110 on correct prediction (actual: ${user.basic_points})`);
-  assert(user.serious_points === 100, `Serious points remained untouched at 100 (actual: ${user.serious_points})`);
+  assert(user.basic_points === 10, `Basic points increased from 0 to 10 on correct prediction (actual: ${user.basic_points})`);
+  assert(user.serious_points === 0, `Serious points remained untouched at 0 (actual: ${user.serious_points})`);
 
   // Finish match 2 with 1-1 (2-0 missed!) -> Basic prediction wrong (0 pts, NO penalty)
   run(
@@ -93,8 +140,8 @@ async function runTests() {
   gradeMatch(match2Id);
 
   user = queryOne<any>('SELECT * FROM users WHERE id = ?', [testUserId]);
-  assert(user.basic_points === 110, `Basic points remain 110 with 0 penalty on incorrect prediction (actual: ${user.basic_points})`);
-  assert(user.serious_points === 100, `Serious points remain completely separate at 100 (actual: ${user.serious_points})`);
+  assert(user.basic_points === 10, `Basic points remain 10 with 0 penalty on incorrect prediction (actual: ${user.basic_points})`);
+  assert(user.serious_points === 0, `Serious points remain completely separate at 0 (actual: ${user.serious_points})`);
 
   console.log('\n--- Testing Serious Mode Sets & -10 Point Rule ---');
   // Create 2 new matches for a Serious Set
@@ -142,8 +189,8 @@ async function runTests() {
   assert(setInDb.points_delta === -10, 'Set points_delta is -10');
 
   user = queryOne<any>('SELECT * FROM users WHERE id = ?', [testUserId]);
-  assert(user.serious_points === 90, `Serious points deducted by 10 to 90 (actual: ${user.serious_points})`);
-  assert(user.basic_points === 110, `Basic points completely unchanged at 110 (actual: ${user.basic_points})`);
+  assert(user.serious_points === -10, `Serious points deducted by 10 from 0 to -10 (actual: ${user.serious_points})`);
+  assert(user.basic_points === 10, `Basic points completely unchanged at 10 (actual: ${user.basic_points})`);
 
   console.log('\n--- Testing Kickoff Lock ---');
   // Insert past match
@@ -162,6 +209,66 @@ async function runTests() {
     assert(err.message.includes('locked') || err.message.includes('started') || err.message.includes('no longer accepting'), 'Kickoff lock correctly rejected');
   }
   assert(lockedCaught, 'Past match prediction was successfully rejected by kickoff lock');
+
+  console.log('\n--- Testing Basic Mode 10 Selections Limit ---');
+  // Create 11 future matches
+  const matchIds: number[] = [];
+  for (let i = 1; i <= 11; i++) {
+    const res = run(
+      `INSERT INTO matches (external_id, competition_id, competition_name, utc_date, status, home_team_name, away_team_name)
+       VALUES (?, 'PL', 'Premier League', datetime('now', '+${i + 5} hours'), 'TIMED', 'Team ${i}A', 'Team ${i}B')`,
+      [Math.floor(Math.random() * 900000) + 100000]
+    );
+    matchIds.push(res.lastInsertRowid);
+  }
+
+  // Create a fresh test user (starts at 0 points by default)
+  const limitUserRes = run(
+    `INSERT INTO users (username, email, password_hash)
+     VALUES (?, ?, 'hash')`,
+    [`limit_user_${Date.now()}`, `limit_${Date.now()}@test.com`]
+  );
+  const limitUserId = limitUserRes.lastInsertRowid;
+
+  // 1. Attempting 11 selections in a single batch should fail
+  let batchLimitCaught = false;
+  try {
+    const items11 = matchIds.map(id => ({ matchId: id, marketType: 'MATCH_WINNER', selection: 'HOME' }));
+    PredictionService.createBasicPredictions(limitUserId, items11);
+  } catch (err: any) {
+    batchLimitCaught = true;
+    assert(err.message.includes('10 selections per day') || err.message.includes('limit of 10 selections'), `Batch > 10 correctly rejected: ${err.message}`);
+  }
+  assert(batchLimitCaught, 'Batch of 11 selections was successfully blocked');
+
+  // 2. Making 10 selections should succeed
+  const items10 = matchIds.slice(0, 10).map(id => ({ matchId: id, marketType: 'MATCH_WINNER', selection: 'HOME' }));
+  const created10 = PredictionService.createBasicPredictions(limitUserId, items10);
+  assert(created10.length === 10, 'Successfully placed exactly 10 Basic Mode selections');
+
+  // 3. Attempting to add an 11th selection today must fail
+  let excessCaught = false;
+  try {
+    PredictionService.createBasicPredictions(limitUserId, [
+      { matchId: matchIds[10], marketType: 'MATCH_WINNER', selection: 'AWAY' }
+    ]);
+  } catch (err: any) {
+    excessCaught = true;
+    assert(err.message.includes('10 selections per day') || err.message.includes('limit of 10 selections'), `11th selection correctly rejected: ${err.message}`);
+  }
+  assert(excessCaught, '11th daily Basic Mode selection was blocked by daily quota of 10');
+
+  // 4. Updating an already pending selection (same match & market) made today should succeed without exceeding daily limit
+  const updated = PredictionService.createBasicPredictions(limitUserId, [
+    { matchId: matchIds[0], marketType: 'MATCH_WINNER', selection: 'DRAW' }
+  ]);
+  assert(updated[0].updated === true, 'Updating an existing pending pick is permitted without consuming extra daily slots');
+
+  // Clean up all test data so database is never polluted
+  run(`DELETE FROM predictions WHERE user_id IN (?, ?, ?)`, [defaultUserId, testUserId, limitUserId]);
+  run(`DELETE FROM serious_sets WHERE user_id IN (?, ?, ?)`, [defaultUserId, testUserId, limitUserId]);
+  run(`DELETE FROM users WHERE id IN (?, ?, ?)`, [defaultUserId, testUserId, limitUserId]);
+  run(`DELETE FROM matches WHERE home_team_name LIKE 'Team %' OR home_team_name LIKE 'Test Team%' OR home_team_name LIKE 'Live Home%'`);
 
   console.log('\n=== ALL TESTS PASSED SUCCESSFULLY! ===\n');
 }
