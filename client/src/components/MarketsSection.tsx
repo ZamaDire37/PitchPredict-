@@ -32,6 +32,7 @@ import {
   BarChart3,
   ChevronDown,
   ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface MarketsSectionProps {
@@ -104,13 +105,13 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
 
   const activeMatch = scheduledMatches.find((m) => m.id === selectedMatchId) || scheduledMatches[0];
 
-  // 2. Category selection: Match Result, Goals, BTTS, Corners, Other Markets
-  const [activeCategory, setActiveCategory] = useState<MarketCategory>('MATCH_RESULT');
+  // 2. Category selection: Goals, Corners, First Half, Bookings, Match Result
+  const [activeCategory, setActiveCategory] = useState<MarketCategory>('GOALS');
 
   // 3. User selects the market first
   const marketsForCategory = CLIENT_MARKETS.filter((m) => m.category === activeCategory);
   const [selectedMarketId, setSelectedMarketId] = useState<string>(
-    marketsForCategory[0]?.id || 'MATCH_WINNER'
+    marketsForCategory[0]?.id || 'GOALS_OVER_UNDER'
   );
 
   // 4. Then their prediction selection
@@ -144,16 +145,16 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
   // Category Icon helper
   const getCategoryIcon = (catId: MarketCategory) => {
     switch (catId) {
-      case 'MATCH_RESULT':
-        return <Trophy className="w-4 h-4" />;
       case 'GOALS':
         return <Target className="w-4 h-4" />;
-      case 'BTTS':
-        return <Flame className="w-4 h-4" />;
       case 'CORNERS':
         return <Flag className="w-4 h-4" />;
-      case 'OTHER':
-        return <Sparkles className="w-4 h-4" />;
+      case 'FIRST_HALF':
+        return <Clock className="w-4 h-4" />;
+      case 'BOOKINGS':
+        return <AlertTriangle className="w-4 h-4" />;
+      case 'MATCH_RESULT':
+        return <Trophy className="w-4 h-4" />;
       default:
         return <Layers className="w-4 h-4" />;
     }
@@ -295,7 +296,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
       <div
         className={`p-5 rounded-2xl border shadow-lg backdrop-blur-md transition-all duration-300 ${
           mode === 'SERIOUS'
-            ? 'bg-gradient-to-r from-red-950/80 via-[#180707] to-amber-950/70 border-red-500/40 shadow-red-950/40'
+            ? 'bg-gradient-to-r from-rose-950/30 via-slate-900 to-slate-950 border-rose-900/40 shadow-rose-950/20'
             : 'bg-slate-900/90 border-slate-800'
         }`}
       >
@@ -305,11 +306,11 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
               <span
                 className={`p-2 rounded-xl font-bold ${
                   mode === 'SERIOUS'
-                    ? 'bg-gradient-to-br from-amber-500 to-red-600 text-white shadow-md shadow-red-500/30 ring-1 ring-red-500/50'
+                    ? 'bg-rose-950/60 text-rose-300 border border-rose-800/40'
                     : 'bg-emerald-500/20 text-emerald-400'
                 }`}
               >
-                {mode === 'SERIOUS' ? <Flame className="w-5 h-5 animate-pulse" /> : <Layers className="w-5 h-5" />}
+                {mode === 'SERIOUS' ? <Flame className="w-5 h-5 text-rose-400" /> : <Layers className="w-5 h-5" />}
               </span>
               <div>
                 <div className="flex items-center gap-2">
@@ -317,8 +318,8 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                     {mode === 'SERIOUS' ? 'Serious Set Market Center' : 'Prediction Market Center'}
                   </h2>
                   {mode === 'SERIOUS' ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-black bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse">
-                      🔥 -10 PT PENALTY ACTIVE
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950/60 text-rose-300 border border-rose-800/40">
+                      -10 PT PENALTY PER SET
                     </span>
                   ) : (
                     <div className="flex items-center gap-1.5">
@@ -563,7 +564,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                 className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden group ${
                   isActive
                     ? mode === 'SERIOUS'
-                      ? 'bg-gradient-to-br from-red-950/90 to-amber-950/90 border-amber-500 shadow-xl shadow-red-950/40 text-white ring-2 ring-amber-500/50'
+                      ? 'bg-slate-900 border-rose-700/70 shadow-lg text-white ring-1 ring-rose-500/30'
                       : 'bg-slate-800 border-emerald-500 shadow-lg shadow-emerald-500/10 text-white ring-2 ring-emerald-500/20'
                     : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                 }`}
@@ -573,7 +574,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                     className={`w-7 h-7 rounded-lg flex items-center justify-center ${
                       isActive
                         ? mode === 'SERIOUS'
-                          ? 'bg-gradient-to-r from-amber-500 to-red-600 text-white font-bold shadow-md'
+                          ? 'bg-rose-700 text-white font-bold shadow-sm'
                           : 'bg-emerald-500 text-slate-950 font-bold shadow-md'
                         : 'bg-slate-950 text-slate-400 group-hover:text-emerald-400'
                     }`}
@@ -584,7 +585,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                     className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
                       isActive
                         ? mode === 'SERIOUS'
-                          ? 'bg-amber-500/20 text-amber-300'
+                          ? 'bg-rose-950/60 text-rose-300'
                           : 'bg-emerald-500/20 text-emerald-400'
                         : 'bg-slate-950 text-slate-500'
                     }`}
@@ -621,7 +622,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
                   isSelected
                     ? mode === 'SERIOUS'
-                      ? 'bg-red-950/70 border-amber-500 text-amber-300 ring-2 ring-amber-500/40 shadow-md shadow-red-950/20'
+                      ? 'bg-rose-950/40 border-rose-700/60 text-rose-200 ring-1 ring-rose-500/30 shadow-sm'
                       : 'bg-slate-800 border-emerald-500 text-emerald-400 ring-2 ring-emerald-500/20 shadow-md'
                     : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
@@ -643,7 +644,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
         <div
           className={`rounded-2xl p-5 shadow-lg space-y-4 border transition-colors ${
             mode === 'SERIOUS'
-              ? 'bg-[#150707]/95 border-red-900/60 shadow-red-950/30'
+              ? 'bg-slate-900/95 border-rose-900/40 shadow-rose-950/20'
               : 'bg-slate-900/90 border-slate-800'
           }`}
         >
@@ -660,33 +661,33 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
             <div
               className={`flex items-center gap-1.5 font-bold px-2.5 py-1 rounded-lg border ${
                 mode === 'SERIOUS'
-                  ? 'text-slate-100 bg-red-950/40 border-red-500/40'
+                  ? 'text-slate-100 bg-rose-950/30 border-rose-900/40'
                   : 'text-slate-200 bg-slate-900 border-slate-700'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${mode === 'SERIOUS' ? 'bg-red-400 animate-pulse' : 'bg-emerald-400'}`}></span>
+              <span className={`w-1.5 h-1.5 rounded-full ${mode === 'SERIOUS' ? 'bg-rose-400' : 'bg-emerald-400'}`}></span>
               <span>{activeMatch.home_team_short || activeMatch.home_team_name} vs {activeMatch.away_team_short || activeMatch.away_team_name}</span>
             </div>
 
-            <span className={`font-bold ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-emerald-400'}`}>→</span>
+            <span className={`font-bold ${mode === 'SERIOUS' ? 'text-rose-400' : 'text-emerald-400'}`}>→</span>
 
             <div
               className={`flex items-center gap-1.5 font-bold px-2.5 py-1 rounded-lg border ${
                 mode === 'SERIOUS'
-                  ? 'text-amber-300 bg-amber-950/50 border-amber-500/40'
+                  ? 'text-rose-200 bg-rose-950/40 border-rose-800/40'
                   : 'text-cyan-300 bg-cyan-950/50 border-cyan-500/30'
               }`}
             >
               <span>{activeMarketDef.name}</span>
             </div>
 
-            <span className={`font-bold ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-emerald-400'}`}>→</span>
+            <span className={`font-bold ${mode === 'SERIOUS' ? 'text-rose-400' : 'text-emerald-400'}`}>→</span>
 
             <div
               className={`flex items-center gap-1.5 font-bold px-2.5 py-1 rounded-lg border transition-all ${
                 selectedOptionId || (mode === 'SERIOUS' && stagedPredictions.length > 0)
                   ? mode === 'SERIOUS'
-                    ? 'text-amber-200 bg-gradient-to-r from-amber-500/20 via-red-500/20 to-red-600/20 border-amber-500/50 ring-1 ring-amber-500/40 shadow-sm'
+                    ? 'text-rose-200 bg-rose-950/40 border-rose-700/60 ring-1 ring-rose-500/30 shadow-sm'
                     : 'text-emerald-300 bg-emerald-950/60 border-emerald-500/40 ring-1 ring-emerald-500/30'
                   : 'text-slate-500 bg-slate-900/60 border-slate-800 italic'
               }`}
@@ -719,7 +720,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
               <span>
                 <strong>Click to select</strong>. <strong>Click again to deselect</strong>.
                 {mode === 'SERIOUS' && (
-                  <span className="ml-1 text-amber-400 font-bold">
+                  <span className="ml-1 text-rose-300 font-bold">
                     (Make as many selections as you want!)
                   </span>
                 )}
@@ -741,7 +742,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                   className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between min-h-[78px] ${
                     isSelected
                       ? mode === 'SERIOUS'
-                        ? 'bg-gradient-to-br from-amber-500/25 via-red-500/25 to-red-600/30 border-amber-500 text-amber-100 ring-2 ring-amber-500/60 shadow-xl shadow-red-500/30'
+                        ? 'bg-rose-950/60 border-rose-600 text-rose-100 ring-2 ring-rose-500/40 shadow-md'
                         : 'bg-emerald-500/20 border-emerald-500 text-emerald-200 ring-2 ring-emerald-500/40 shadow-lg shadow-emerald-500/20'
                       : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/40'
                   }`}
@@ -752,7 +753,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                       <span
                         className={`flex items-center justify-center w-4 h-4 rounded-full font-bold shrink-0 text-[10px] ${
                           mode === 'SERIOUS'
-                            ? 'bg-gradient-to-r from-amber-500 to-red-600 text-white shadow-sm'
+                            ? 'bg-rose-700 text-white shadow-sm'
                             : 'bg-emerald-500 text-slate-950'
                         }`}
                       >
@@ -767,8 +768,8 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                         className={`font-black font-mono ${
                           mode === 'SERIOUS'
                             ? isSelected
-                              ? 'text-amber-300'
-                              : 'text-amber-500'
+                              ? 'text-rose-200'
+                              : 'text-rose-400'
                             : isSelected
                             ? 'text-emerald-400'
                             : 'text-emerald-500'
@@ -777,7 +778,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                         +{opt.oddsPoints} pts
                       </span>
                       {mode === 'SERIOUS' && isSelected && (
-                        <span className="text-[9px] font-bold text-red-300 bg-red-950/80 px-1 py-0.2 rounded border border-red-500/30">
+                        <span className="text-[9px] font-bold text-rose-300 bg-rose-950/80 px-1 py-0.2 rounded border border-rose-800/40">
                           -10 risk
                         </span>
                       )}
@@ -833,13 +834,13 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
               className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
                 feedback.type === 'success'
                   ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
-                  : 'bg-red-950/60 border-red-500/40 text-red-300'
+                  : 'bg-rose-950/60 border-rose-800/40 text-rose-300'
               }`}
             >
               {feedback.type === 'success' ? (
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               ) : (
-                <Info className="w-4 h-4 text-red-400 shrink-0" />
+                <Info className="w-4 h-4 text-rose-400 shrink-0" />
               )}
               <span>{feedback.text}</span>
             </div>
@@ -851,11 +852,11 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
               {mode === 'SERIOUS' ? (
                 <div className="flex items-center gap-2">
                   <span className="text-slate-400">Serious Set:</span>
-                  <span className="px-2.5 py-1 rounded-lg font-bold font-mono border bg-red-950/60 text-amber-300 border-red-500/40 shadow-sm flex items-center gap-1.5">
-                    <Flame className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="px-2.5 py-1 rounded-lg font-bold font-mono border bg-rose-950/60 text-rose-200 border-rose-800/40 shadow-sm flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 text-rose-400" />
                     <span>{stagedPredictions.length} {stagedPredictions.length === 1 ? 'pick' : 'picks'} selected</span>
                   </span>
-                  <span className="text-[11px] text-amber-400 font-semibold">
+                  <span className="text-[11px] text-rose-300 font-semibold">
                     (No limit: add as many selections as you want!)
                   </span>
                 </div>
@@ -901,7 +902,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
                     : mode === 'BASIC'
                     ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                    : 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-white shadow-xl shadow-red-500/40 font-black'
+                    : 'bg-rose-700 hover:bg-rose-600 text-white shadow-lg shadow-rose-950/40 font-bold'
                 }`}
               >
                 {submitting ? (

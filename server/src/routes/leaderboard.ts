@@ -3,7 +3,7 @@ import { queryAll } from '../db/database.js';
 
 const router = Router();
 
-// GET /api/leaderboard/basic - Leaderboard for Basic Mode with Section Filtering & Streaks
+// GET /api/leaderboard/basic - Leaderboard for Basic Mode with Section Filtering, Weekly Ranking & Streaks
 router.get('/basic', (req, res) => {
   try {
     const section = (req.query.section as string) || 'points';
@@ -17,11 +17,15 @@ router.get('/basic', (req, res) => {
       correct_count: number;
       incorrect_count: number;
       pending_count: number;
+      weekly_history_points: number;
+      weekly_preds_points: number;
     }>(`
       SELECT u.id, u.username, u.basic_points, u.basic_streak, u.basic_best_streak,
              (SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id AND p.mode = 'BASIC' AND p.status = 'CORRECT') as correct_count,
              (SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id AND p.mode = 'BASIC' AND p.status = 'INCORRECT') as incorrect_count,
-             (SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id AND p.mode = 'BASIC' AND p.status = 'PENDING') as pending_count
+             (SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id AND p.mode = 'BASIC' AND p.status = 'PENDING') as pending_count,
+             (SELECT COALESCE(SUM(delta), 0) FROM points_history ph WHERE ph.user_id = u.id AND ph.mode = 'BASIC' AND ph.delta > 0 AND ph.created_at >= datetime('now', '-7 days')) as weekly_history_points,
+             (SELECT COALESCE(SUM(points_awarded), 0) FROM predictions pr WHERE pr.user_id = u.id AND pr.mode = 'BASIC' AND pr.status = 'CORRECT' AND (pr.resolved_at >= datetime('now', '-7 days') OR pr.created_at >= datetime('now', '-7 days'))) as weekly_preds_points
       FROM users u
     `);
 
@@ -32,6 +36,7 @@ router.get('/basic', (req, res) => {
       const accuracy = totalGraded > 0 ? Math.round((correct / totalGraded) * 100) : 0;
       const streak = u.basic_streak || 0;
       const bestStreak = u.basic_best_streak || 0;
+      const weeklyPoints = Math.max(u.weekly_history_points || 0, u.weekly_preds_points || 0);
 
       let streakTier: 'BLAZING' | 'HOT' | 'WARMING' | 'COLD' = 'COLD';
       if (streak >= 5) streakTier = 'BLAZING';
@@ -42,6 +47,7 @@ router.get('/basic', (req, res) => {
         id: u.id,
         username: u.username,
         points: u.basic_points,
+        weekly_points: weeklyPoints,
         streak,
         best_streak: bestStreak,
         correct_count: correct,
@@ -58,6 +64,7 @@ router.get('/basic', (req, res) => {
     });
 
     // Compute Hall of Fame Spotlights
+    const topWeekly = enriched.slice().sort((a, b) => b.weekly_points - a.weekly_points || b.points - a.points)[0] || null;
     const topPoints = enriched.slice().sort((a, b) => b.points - a.points)[0] || null;
     const hottestStreak =
       enriched.slice().sort((a, b) => b.streak - a.streak || b.best_streak - a.best_streak || b.points - a.points)[0] || null;
@@ -78,7 +85,14 @@ router.get('/basic', (req, res) => {
 
     // Sort according to section
     let sorted = enriched.slice();
-    if (section === 'streak') {
+    if (section === 'weekly') {
+      sorted.sort(
+        (a, b) =>
+          b.weekly_points - a.weekly_points ||
+          b.points - a.points ||
+          b.accuracy - a.accuracy
+      );
+    } else if (section === 'streak') {
       sorted.sort(
         (a, b) =>
           b.streak - a.streak ||
@@ -101,12 +115,12 @@ router.get('/basic', (req, res) => {
           b.accuracy - a.accuracy
       );
     } else {
-      // Default: points
+      // Default: points (general)
       sorted.sort(
         (a, b) =>
           b.points - a.points ||
-          b.streak - a.streak ||
-          b.best_streak - a.best_streak
+          b.weekly_points - a.weekly_points ||
+          b.streak - a.streak
       );
     }
 
@@ -120,6 +134,7 @@ router.get('/basic', (req, res) => {
       section,
       leaderboard,
       spotlights: {
+        topWeekly,
         topPoints,
         hottestStreak,
         bestStreakRecord,
@@ -134,7 +149,7 @@ router.get('/basic', (req, res) => {
   }
 });
 
-// GET /api/leaderboard/serious - Leaderboard for Serious Mode with Section Filtering & Streaks
+// GET /api/leaderboard/serious - Leaderboard for Serious Mode with Section Filtering, Weekly Ranking & Streaks
 router.get('/serious', (req, res) => {
   try {
     const section = (req.query.section as string) || 'points';
@@ -148,11 +163,15 @@ router.get('/serious', (req, res) => {
       won_sets: number;
       lost_sets: number;
       pending_sets: number;
+      weekly_history_points: number;
+      weekly_sets_points: number;
     }>(`
       SELECT u.id, u.username, u.serious_points, u.serious_streak, u.serious_best_streak,
              (SELECT COUNT(*) FROM serious_sets s WHERE s.user_id = u.id AND s.status = 'WON') as won_sets,
              (SELECT COUNT(*) FROM serious_sets s WHERE s.user_id = u.id AND s.status = 'LOST') as lost_sets,
-             (SELECT COUNT(*) FROM serious_sets s WHERE s.user_id = u.id AND s.status = 'PENDING') as pending_sets
+             (SELECT COUNT(*) FROM serious_sets s WHERE s.user_id = u.id AND s.status = 'PENDING') as pending_sets,
+             (SELECT COALESCE(SUM(delta), 0) FROM points_history ph WHERE ph.user_id = u.id AND ph.mode = 'SERIOUS' AND ph.delta > 0 AND ph.created_at >= datetime('now', '-7 days')) as weekly_history_points,
+             (SELECT COALESCE(SUM(potential_points), 0) FROM serious_sets ss WHERE ss.user_id = u.id AND ss.status = 'WON' AND (ss.resolved_at >= datetime('now', '-7 days') OR ss.created_at >= datetime('now', '-7 days'))) as weekly_sets_points
       FROM users u
     `);
 
@@ -163,6 +182,7 @@ router.get('/serious', (req, res) => {
       const accuracy = totalSets > 0 ? Math.round((won / totalSets) * 100) : 0;
       const streak = u.serious_streak || 0;
       const bestStreak = u.serious_best_streak || 0;
+      const weeklyPoints = Math.max(u.weekly_history_points || 0, u.weekly_sets_points || 0);
 
       let streakTier: 'BLAZING' | 'HOT' | 'WARMING' | 'COLD' = 'COLD';
       if (streak >= 5) streakTier = 'BLAZING';
@@ -173,6 +193,7 @@ router.get('/serious', (req, res) => {
         id: u.id,
         username: u.username,
         points: u.serious_points,
+        weekly_points: weeklyPoints,
         streak,
         best_streak: bestStreak,
         won_sets: won,
@@ -189,6 +210,7 @@ router.get('/serious', (req, res) => {
     });
 
     // Compute Hall of Fame Spotlights for Serious Mode
+    const topWeekly = enriched.slice().sort((a, b) => b.weekly_points - a.weekly_points || b.points - a.points)[0] || null;
     const topPoints = enriched.slice().sort((a, b) => b.points - a.points)[0] || null;
     const hottestStreak =
       enriched.slice().sort((a, b) => b.streak - a.streak || b.best_streak - a.best_streak || b.points - a.points)[0] || null;
@@ -209,7 +231,14 @@ router.get('/serious', (req, res) => {
 
     // Sort according to section
     let sorted = enriched.slice();
-    if (section === 'streak') {
+    if (section === 'weekly') {
+      sorted.sort(
+        (a, b) =>
+          b.weekly_points - a.weekly_points ||
+          b.points - a.points ||
+          b.accuracy - a.accuracy
+      );
+    } else if (section === 'streak') {
       sorted.sort(
         (a, b) =>
           b.streak - a.streak ||
@@ -232,12 +261,12 @@ router.get('/serious', (req, res) => {
           b.accuracy - a.accuracy
       );
     } else {
-      // Default: points
+      // Default: points (general)
       sorted.sort(
         (a, b) =>
           b.points - a.points ||
-          b.streak - a.streak ||
-          b.best_streak - a.best_streak
+          b.weekly_points - a.weekly_points ||
+          b.streak - a.streak
       );
     }
 
@@ -251,6 +280,7 @@ router.get('/serious', (req, res) => {
       section,
       leaderboard,
       spotlights: {
+        topWeekly,
         topPoints,
         hottestStreak,
         bestStreakRecord,

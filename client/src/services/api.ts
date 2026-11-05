@@ -222,15 +222,16 @@ export const api = {
     return data;
   },
 
-  // Leaderboards with Section Filtering & Hottest Streaks
+  // Leaderboards with Section Filtering, Weekly Ranking & Hottest Streaks
   async getLeaderboard(
     mode: 'BASIC' | 'SERIOUS',
-    section: 'points' | 'streak' | 'accuracy' | 'wins' = 'points'
+    section: 'weekly' | 'points' | 'streak' | 'accuracy' | 'wins' = 'points'
   ): Promise<{
     mode: string;
     section: string;
     leaderboard: any[];
     spotlights: {
+      topWeekly?: any;
       topPoints?: any;
       hottestStreak?: any;
       bestStreakRecord?: any;

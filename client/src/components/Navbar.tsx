@@ -52,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <header
         className={`sticky top-0 z-40 w-full border-b transition-colors duration-300 ${
           mode === 'SERIOUS'
-            ? 'border-red-500/40 bg-[#140606]/95 shadow-lg shadow-red-950/40 backdrop-blur-md'
+            ? 'border-rose-900/40 bg-slate-950/95 shadow-sm backdrop-blur-md'
             : 'border-slate-800 bg-slate-950/90 backdrop-blur-md'
         }`}
       >
@@ -61,9 +61,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Brand Logo & Name */}
             <div className="flex items-center gap-2 sm:gap-3 cursor-pointer shrink-0" onClick={() => setActiveTab('matches')}>
               <div
-                className={`relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl overflow-hidden shadow-lg transition-all duration-300 border shrink-0 ${
+                className={`relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl overflow-hidden shadow-md transition-all duration-300 border shrink-0 ${
                   mode === 'SERIOUS'
-                    ? 'border-amber-500/60 shadow-red-500/30 ring-2 ring-red-500/50'
+                    ? 'border-rose-800/60 shadow-rose-950/40'
                     : 'border-emerald-500/50 shadow-emerald-500/20'
                 }`}
               >
@@ -76,11 +76,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="font-black text-sm sm:text-lg tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
-                    PITCH<span className={mode === 'SERIOUS' ? 'text-amber-400' : 'text-emerald-400'}>PREDICT</span>
+                    PITCH<span className={mode === 'SERIOUS' ? 'text-rose-400' : 'text-emerald-400'}>PREDICT</span>
                   </span>
                   {mode === 'SERIOUS' ? (
-                    <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse">
-                      🔥 SERIOUS
+                    <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-950/60 text-rose-300 border border-rose-800/40">
+                      SERIOUS
                     </span>
                   ) : (
                     <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -112,15 +112,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => setMode('SERIOUS')}
                 className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition-all duration-200 relative ${
                   mode === 'SERIOUS'
-                    ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-lg shadow-red-500/40 font-black ring-2 ring-red-500/60'
+                    ? 'bg-rose-700 text-white shadow-md shadow-rose-950/40 font-bold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                 }`}
                 title="Switch to Serious Mode (-10 Set Penalty)"
               >
-                <Flame className="w-3.5 h-3.5 text-amber-200" />
+                <Flame className="w-3.5 h-3.5 text-rose-300" />
                 <span>Serious<span className="hidden sm:inline"> Mode</span></span>
                 {stagedPredictions.length > 0 && (
-                  <span className="ml-0.5 sm:ml-1 px-1.5 py-0.2 rounded-full text-[9px] sm:text-[10px] bg-white text-slate-950 font-black animate-pulse">
+                  <span className="ml-0.5 sm:ml-1 px-1.5 py-0.2 rounded-full text-[9px] sm:text-[10px] bg-rose-950 text-rose-200 font-bold border border-rose-800/40">
                     {stagedPredictions.length}
                   </span>
                 )}

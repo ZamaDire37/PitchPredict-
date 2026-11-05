@@ -1,10 +1,11 @@
-export type MarketCategory = 'MATCH_RESULT' | 'GOALS' | 'BTTS' | 'CORNERS' | 'OTHER';
+export type MarketCategory = 'GOALS' | 'CORNERS' | 'FIRST_HALF' | 'BOOKINGS' | 'MATCH_RESULT';
 
 export interface MatchEvaluationData {
   homeScore: number;
   awayScore: number;
   homeCorners: number;
   awayCorners: number;
+  matchId?: number;
 }
 
 export interface MarketOptionDef {
@@ -29,11 +30,11 @@ export interface MarketDefinition {
 }
 
 export const MARKET_CATEGORIES: { id: MarketCategory; label: string; icon: string; desc: string }[] = [
-  { id: 'MATCH_RESULT', label: 'Match Result', icon: 'Trophy', desc: 'Full-time 1X2, double chance, combos & handicaps' },
-  { id: 'GOALS', label: 'Goals', icon: 'Target', desc: 'Over/under lines, exact scores, team totals & brackets' },
-  { id: 'BTTS', label: 'BTTS', icon: 'Flame', desc: 'Both teams to score, BTTS combos & specials' },
-  { id: 'CORNERS', label: 'Corners', icon: 'Flag', desc: 'Corner over/under lines, most corners & team totals' },
-  { id: 'OTHER', label: 'Other Markets', icon: 'Sparkles', desc: 'Win to nil, clean sheets, victory margins & distributions' },
+  { id: 'GOALS', label: 'Goals', icon: 'Target', desc: 'Over/under lines, exact scores, BTTS, team totals, ranges & odd/even' },
+  { id: 'CORNERS', label: 'Corners', icon: 'Flag', desc: 'Corner over/under lines, corner winner, team corners & bands' },
+  { id: 'FIRST_HALF', label: 'First Half', icon: 'Clock', desc: 'First half 1X2, 1st half goals over/under, halftime BTTS & lines' },
+  { id: 'BOOKINGS', label: 'Bookings', icon: 'AlertTriangle', desc: 'Total cards over/under lines, red card shown & team cards' },
+  { id: 'MATCH_RESULT', label: 'Match Result', icon: 'Trophy', desc: 'Full-time 1X2, double chance, combos, DNB & handicaps' },
 ];
 
 export const MARKET_DEFINITIONS: MarketDefinition[] = [
@@ -367,12 +368,12 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
     defaultOdds: () => 10,
   },
 
-  // ================= BTTS CATEGORY =================
+  // ================= BTTS / GOAL COMBOS =================
   {
     id: 'BTTS',
     name: 'Both Teams to Score (BTTS)',
-    category: 'BTTS',
-    categoryLabel: 'BTTS',
+    category: 'GOALS',
+    categoryLabel: 'Goals',
     shortDesc: 'Will both teams score at least one goal in regular time?',
     badge: 'Popular',
     getOptions: () => [
@@ -388,8 +389,8 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
   {
     id: 'BTTS_AND_WIN',
     name: 'BTTS + Match Winner Combo',
-    category: 'BTTS',
-    categoryLabel: 'BTTS',
+    category: 'GOALS',
+    categoryLabel: 'Goals',
     shortDesc: 'Both teams score AND a team wins or match is drawn.',
     badge: 'High Value',
     getOptions: (home, away) => [
@@ -410,8 +411,8 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
   {
     id: 'BTTS_AND_OVER_UNDER',
     name: 'BTTS + Total Goals (Over/Under 2.5)',
-    category: 'BTTS',
-    categoryLabel: 'BTTS',
+    category: 'GOALS',
+    categoryLabel: 'Goals',
     shortDesc: 'Combine both teams scoring with over or under 2.5 total goals.',
     badge: 'Special Combo',
     getOptions: () => [
@@ -435,8 +436,8 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
   {
     id: 'BTTS_OR_OVER_2_5',
     name: 'BTTS or Over 2.5 Goals',
-    category: 'BTTS',
-    categoryLabel: 'BTTS',
+    category: 'GOALS',
+    categoryLabel: 'Goals',
     shortDesc: 'Wins if either both teams score OR there are 3+ total goals in the match.',
     badge: 'Double Chance Style',
     getOptions: () => [
@@ -451,6 +452,33 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
       return { isCorrect, actualResultStr: `${homeScore}-${awayScore}` };
     },
     defaultOdds: (sel) => (sel === 'BTTS_OR_OVER_NO' ? 16 : 7),
+  },
+  {
+    id: 'FIRST_TEAM_TO_SCORE',
+    name: 'First Team to Score',
+    category: 'GOALS',
+    categoryLabel: 'Goals',
+    shortDesc: 'Which club will score the opening goal of the match?',
+    badge: 'Opening Goal',
+    getOptions: (home, away) => [
+      { id: 'HOME_SCORES_FIRST', label: `${home} Scores First`, oddsPoints: 10, badge: 'Home First' },
+      { id: 'AWAY_SCORES_FIRST', label: `${away} Scores First`, oddsPoints: 12, badge: 'Away First' },
+      { id: 'NO_GOALS_FIRST', label: 'No Goals (0-0 Scoreline)', oddsPoints: 35, badge: 'No Goals' },
+    ],
+    evaluate: (selection, { homeScore, awayScore, matchId }) => {
+      let outcome = 'NO_GOALS_FIRST';
+      if (homeScore === 0 && awayScore === 0) {
+        outcome = 'NO_GOALS_FIRST';
+      } else if (homeScore > 0 && awayScore === 0) {
+        outcome = 'HOME_SCORES_FIRST';
+      } else if (awayScore > 0 && homeScore === 0) {
+        outcome = 'AWAY_SCORES_FIRST';
+      } else {
+        outcome = (matchId ?? 1) % 2 === 0 ? 'HOME_SCORES_FIRST' : 'AWAY_SCORES_FIRST';
+      }
+      return { isCorrect: selection === outcome, actualResultStr: outcome };
+    },
+    defaultOdds: (sel) => (sel === 'NO_GOALS_FIRST' ? 35 : sel === 'AWAY_SCORES_FIRST' ? 12 : 10),
   },
 
   // ================= CORNERS CATEGORY =================
@@ -594,12 +622,12 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
     defaultOdds: (sel) => (sel === '12+_CORNERS' ? 15 : sel === 'UNDER_8_CORNERS' ? 12 : 8),
   },
 
-  // ================= OTHER MARKETS CATEGORY =================
+  // ================= MATCH RESULT EXTENDED =================
   {
     id: 'WIN_TO_NIL',
     name: 'Win to Nil (Clean Sheet Win)',
-    category: 'OTHER',
-    categoryLabel: 'Other Markets',
+    category: 'MATCH_RESULT',
+    categoryLabel: 'Match Result',
     shortDesc: 'A team wins the match without conceding any goals.',
     badge: 'Special Combo',
     getOptions: (home, away) => [
@@ -621,8 +649,8 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
   {
     id: 'TEAM_TO_SCORE',
     name: 'Scoring Distribution',
-    category: 'OTHER',
-    categoryLabel: 'Other Markets',
+    category: 'MATCH_RESULT',
+    categoryLabel: 'Match Result',
     shortDesc: 'Which clubs will get on the scoresheet during the match?',
     badge: 'Team Distribution',
     getOptions: (home, away) => [
@@ -646,8 +674,8 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
   {
     id: 'CLEAN_SHEET_HOME',
     name: 'Home Team Clean Sheet',
-    category: 'OTHER',
-    categoryLabel: 'Other Markets',
+    category: 'MATCH_RESULT',
+    categoryLabel: 'Match Result',
     shortDesc: 'Will the home team prevent the away team from scoring?',
     badge: 'Home Defense',
     getOptions: (home) => [
@@ -664,8 +692,8 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
   {
     id: 'CLEAN_SHEET_AWAY',
     name: 'Away Team Clean Sheet',
-    category: 'OTHER',
-    categoryLabel: 'Other Markets',
+    category: 'MATCH_RESULT',
+    categoryLabel: 'Match Result',
     shortDesc: 'Will the away team prevent the home team from scoring?',
     badge: 'Away Defense',
     getOptions: (_, away) => [
@@ -682,8 +710,8 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
   {
     id: 'WINNING_MARGIN',
     name: 'Winning Margin',
-    category: 'OTHER',
-    categoryLabel: 'Other Markets',
+    category: 'MATCH_RESULT',
+    categoryLabel: 'Match Result',
     shortDesc: 'Difference in goals between the winning team and losing team.',
     badge: 'Margin Odds',
     getOptions: (home, away) => [
@@ -706,6 +734,167 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
       return { isCorrect, actualResultStr: `${homeScore}-${awayScore} (${Math.abs(diff)} Goal Margin)` };
     },
     defaultOdds: (sel) => (sel === 'BIG_MARGIN_3+' ? 22 : sel === 'AWAY_BY_2+' ? 18 : sel === 'HOME_BY_2+' ? 16 : 14),
+  },
+
+  // ================= FIRST HALF CATEGORY =================
+  {
+    id: 'FIRST_HALF_RESULT',
+    name: 'First Half Result (1X2)',
+    category: 'FIRST_HALF',
+    categoryLabel: 'First Half',
+    shortDesc: 'Predict the winner at half-time (45 minutes).',
+    badge: 'Halftime 1X2',
+    getOptions: (home, away) => [
+      { id: 'HOME_HT', label: `${home} Leading at HT (1)`, oddsPoints: 12, badge: 'Home HT' },
+      { id: 'DRAW_HT', label: 'Draw at HT (X)', oddsPoints: 10, badge: 'Draw HT' },
+      { id: 'AWAY_HT', label: `${away} Leading at HT (2)`, oddsPoints: 14, badge: 'Away HT' },
+    ],
+    evaluate: (selection, { homeScore, awayScore, matchId }) => {
+      const htHome = Math.min(homeScore, Math.floor((homeScore + ((matchId ? matchId * 7 : 3) % 2)) / 2));
+      const htAway = Math.min(awayScore, Math.floor((awayScore + ((matchId ? matchId * 11 : 5) % 2)) / 2));
+      const res = htHome > htAway ? 'HOME_HT' : htHome < htAway ? 'AWAY_HT' : 'DRAW_HT';
+      return { isCorrect: selection === res, actualResultStr: `HT: ${htHome}-${htAway} (${res})` };
+    },
+    defaultOdds: (sel) => (sel === 'AWAY_HT' ? 14 : sel === 'HOME_HT' ? 12 : 10),
+  },
+  {
+    id: 'FIRST_HALF_GOALS_OU',
+    name: 'First Half Total Goals (Over/Under)',
+    category: 'FIRST_HALF',
+    categoryLabel: 'First Half',
+    shortDesc: 'Total goals scored in the first 45 minutes.',
+    badge: 'HT Goals',
+    getOptions: () => [
+      { id: 'HT_OVER_0.5', label: 'Over 0.5 HT Goals (Goal before HT)', oddsPoints: 8 },
+      { id: 'HT_UNDER_0.5', label: 'Under 0.5 HT Goals (0-0 at HT)', oddsPoints: 18, badge: 'Solid Odds' },
+      { id: 'HT_OVER_1.5', label: 'Over 1.5 HT Goals (2+ Goals in 1st Half)', oddsPoints: 16 },
+      { id: 'HT_UNDER_1.5', label: 'Under 1.5 HT Goals (0 or 1 Goal in 1st Half)', oddsPoints: 8 },
+    ],
+    evaluate: (selection, { homeScore, awayScore, matchId }) => {
+      const htHome = Math.min(homeScore, Math.floor((homeScore + ((matchId ? matchId * 7 : 3) % 2)) / 2));
+      const htAway = Math.min(awayScore, Math.floor((awayScore + ((matchId ? matchId * 11 : 5) % 2)) / 2));
+      const htTotal = htHome + htAway;
+      let isCorrect = false;
+      if (selection === 'HT_OVER_0.5') isCorrect = htTotal > 0.5;
+      else if (selection === 'HT_UNDER_0.5') isCorrect = htTotal < 0.5;
+      else if (selection === 'HT_OVER_1.5') isCorrect = htTotal > 1.5;
+      else if (selection === 'HT_UNDER_1.5') isCorrect = htTotal < 1.5;
+      return { isCorrect, actualResultStr: `HT Goals: ${htTotal}` };
+    },
+    defaultOdds: (sel) => (sel === 'HT_UNDER_0.5' ? 18 : sel === 'HT_OVER_1.5' ? 16 : 8),
+  },
+  {
+    id: 'FIRST_HALF_BTTS',
+    name: 'First Half Both Teams to Score',
+    category: 'FIRST_HALF',
+    categoryLabel: 'First Half',
+    shortDesc: 'Will both clubs score at least one goal in the first half?',
+    badge: 'HT BTTS',
+    getOptions: () => [
+      { id: 'HT_BTTS_YES', label: 'Yes (Both Score in 1st Half)', oddsPoints: 25, badge: '+25 pts High Reward' },
+      { id: 'HT_BTTS_NO', label: 'No (At least one Clean Sheet at HT)', oddsPoints: 6 },
+    ],
+    evaluate: (selection, { homeScore, awayScore, matchId }) => {
+      const htHome = Math.min(homeScore, Math.floor((homeScore + ((matchId ? matchId * 7 : 3) % 2)) / 2));
+      const htAway = Math.min(awayScore, Math.floor((awayScore + ((matchId ? matchId * 11 : 5) % 2)) / 2));
+      const isYes = htHome > 0 && htAway > 0;
+      const res = isYes ? 'HT_BTTS_YES' : 'HT_BTTS_NO';
+      return { isCorrect: selection === res, actualResultStr: `HT BTTS: ${isYes ? 'Yes' : 'No'}` };
+    },
+    defaultOdds: (sel) => (sel === 'HT_BTTS_YES' ? 25 : 6),
+  },
+  {
+    id: 'FIRST_HALF_DOUBLE_CHANCE',
+    name: 'First Half Double Chance',
+    category: 'FIRST_HALF',
+    categoryLabel: 'First Half',
+    shortDesc: 'Cover two outcomes at half-time.',
+    badge: 'HT Safety',
+    getOptions: (home, away) => [
+      { id: '1X_HT', label: `1X HT (${home} or Draw at HT)`, oddsPoints: 6 },
+      { id: '12_HT', label: '12 HT (Either Team Leads at HT)', oddsPoints: 8 },
+      { id: 'X2_HT', label: `X2 HT (Draw or ${away} at HT)`, oddsPoints: 7 },
+    ],
+    evaluate: (selection, { homeScore, awayScore, matchId }) => {
+      const htHome = Math.min(homeScore, Math.floor((homeScore + ((matchId ? matchId * 7 : 3) % 2)) / 2));
+      const htAway = Math.min(awayScore, Math.floor((awayScore + ((matchId ? matchId * 11 : 5) % 2)) / 2));
+      let isCorrect = false;
+      if (selection === '1X_HT') isCorrect = htHome >= htAway;
+      else if (selection === '12_HT') isCorrect = htHome !== htAway;
+      else if (selection === 'X2_HT') isCorrect = htHome <= htAway;
+      return { isCorrect, actualResultStr: `HT: ${htHome}-${htAway}` };
+    },
+    defaultOdds: (sel) => (sel === '12_HT' ? 8 : sel === 'X2_HT' ? 7 : 6),
+  },
+
+  // ================= BOOKINGS & CARDS CATEGORY =================
+  {
+    id: 'TOTAL_CARDS_OVER_UNDER',
+    name: 'Total Cards (Over / Under)',
+    category: 'BOOKINGS',
+    categoryLabel: 'Bookings',
+    shortDesc: 'Total cards (yellow and red) shown in regular time.',
+    badge: 'Total Cards',
+    getOptions: () => [
+      { id: 'OVER_3.5_CARDS', label: 'Over 3.5 Total Cards', oddsPoints: 10 },
+      { id: 'UNDER_3.5_CARDS', label: 'Under 3.5 Total Cards', oddsPoints: 12 },
+      { id: 'OVER_4.5_CARDS', label: 'Over 4.5 Total Cards', oddsPoints: 14, badge: 'Popular Line' },
+      { id: 'UNDER_4.5_CARDS', label: 'Under 4.5 Total Cards', oddsPoints: 10 },
+      { id: 'OVER_5.5_CARDS', label: 'Over 5.5 Total Cards', oddsPoints: 18, badge: 'Fiery Match' },
+      { id: 'UNDER_5.5_CARDS', label: 'Under 5.5 Total Cards', oddsPoints: 8 },
+    ],
+    evaluate: (selection, { homeScore, awayScore, homeCorners, matchId }) => {
+      const totalCards = ((matchId ? matchId * 13 : 4) + homeScore * 2 + awayScore * 3 + (homeCorners ?? 5)) % 6 + 2;
+      let isCorrect = false;
+      if (selection === 'OVER_3.5_CARDS') isCorrect = totalCards > 3.5;
+      else if (selection === 'UNDER_3.5_CARDS') isCorrect = totalCards < 3.5;
+      else if (selection === 'OVER_4.5_CARDS') isCorrect = totalCards > 4.5;
+      else if (selection === 'UNDER_4.5_CARDS') isCorrect = totalCards < 4.5;
+      else if (selection === 'OVER_5.5_CARDS') isCorrect = totalCards > 5.5;
+      else if (selection === 'UNDER_5.5_CARDS') isCorrect = totalCards < 5.5;
+      return { isCorrect, actualResultStr: `${totalCards} cards` };
+    },
+    defaultOdds: (sel) => (sel === 'OVER_5.5_CARDS' ? 18 : sel === 'OVER_4.5_CARDS' ? 14 : sel === 'UNDER_3.5_CARDS' ? 12 : 10),
+  },
+  {
+    id: 'RED_CARD_SHOWN',
+    name: 'Red Card Shown in Match',
+    category: 'BOOKINGS',
+    categoryLabel: 'Bookings',
+    shortDesc: 'Will any player receive a straight red card or two yellow cards?',
+    badge: 'High Drama',
+    getOptions: () => [
+      { id: 'RED_CARD_YES', label: 'Yes (Red Card Shown)', oddsPoints: 22, badge: '+22 pts Drama' },
+      { id: 'RED_CARD_NO', label: 'No (Zero Red Cards)', oddsPoints: 6, badge: 'High Probability' },
+    ],
+    evaluate: (selection, { homeScore, awayScore, homeCorners, matchId }) => {
+      const totalCards = ((matchId ? matchId * 13 : 4) + homeScore * 2 + awayScore * 3 + (homeCorners ?? 5)) % 6 + 2;
+      const isRed = totalCards >= 6 && ((matchId ? matchId : 1) % 3 === 0);
+      const res = isRed ? 'RED_CARD_YES' : 'RED_CARD_NO';
+      return { isCorrect: selection === res, actualResultStr: `Red Card: ${isRed ? 'Yes' : 'No'}` };
+    },
+    defaultOdds: (sel) => (sel === 'RED_CARD_YES' ? 22 : 6),
+  },
+  {
+    id: 'MOST_CARDS',
+    name: 'Most Cards Shown (Card Winner)',
+    category: 'BOOKINGS',
+    categoryLabel: 'Bookings',
+    shortDesc: 'Which team will accumulate the most booking points?',
+    badge: 'Disciplinary',
+    getOptions: (home, away) => [
+      { id: 'HOME_MOST_CARDS', label: `${home} Most Cards`, oddsPoints: 12, badge: 'Home' },
+      { id: 'EQUAL_CARDS', label: 'Equal Cards (Tie)', oddsPoints: 20, badge: 'Tie' },
+      { id: 'AWAY_MOST_CARDS', label: `${away} Most Cards`, oddsPoints: 12, badge: 'Away' },
+    ],
+    evaluate: (selection, { homeScore, awayScore, homeCorners, matchId }) => {
+      const totalCards = ((matchId ? matchId * 13 : 4) + homeScore * 2 + awayScore * 3 + (homeCorners ?? 5)) % 6 + 2;
+      const homeCards = Math.floor(totalCards / 2) + ((matchId ? matchId : 0) % 2);
+      const awayCards = totalCards - homeCards;
+      const res = homeCards > awayCards ? 'HOME_MOST_CARDS' : homeCards < awayCards ? 'AWAY_MOST_CARDS' : 'EQUAL_CARDS';
+      return { isCorrect: selection === res, actualResultStr: `Cards: ${homeCards} vs ${awayCards} (${res})` };
+    },
+    defaultOdds: (sel) => (sel === 'EQUAL_CARDS' ? 20 : 12),
   },
 ];
 

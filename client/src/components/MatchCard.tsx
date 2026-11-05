@@ -33,7 +33,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
         isStarted
           ? 'border-slate-800/80 opacity-90 cursor-default bg-slate-900/90'
           : mode === 'SERIOUS'
-          ? 'border-red-950/80 bg-[#160808]/90 hover:border-amber-500/70 hover:shadow-red-900/40 hover:shadow-2xl cursor-pointer hover:-translate-y-1'
+          ? 'border-rose-950/60 bg-slate-900/90 hover:border-rose-800/60 hover:shadow-rose-950/20 hover:shadow-xl cursor-pointer hover:-translate-y-0.5'
           : 'border-slate-800 bg-slate-900/90 hover:border-emerald-500/50 hover:shadow-emerald-500/10 hover:shadow-xl cursor-pointer hover:-translate-y-0.5'
       }`}
     >
@@ -41,7 +41,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
       <div
         className={`flex items-center justify-between px-4 py-2.5 border-b text-xs transition-colors ${
           mode === 'SERIOUS'
-            ? 'bg-gradient-to-r from-red-950/80 via-slate-950/70 to-amber-950/70 border-red-900/50'
+            ? 'bg-slate-950/60 border-rose-900/30'
             : 'bg-slate-950/60 border-slate-800/70'
         }`}
       >
@@ -61,8 +61,8 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
           <span className="text-slate-500">•</span>
           <span className="text-slate-400 text-[11px]">Matchday {match.matchday}</span>
           {mode === 'SERIOUS' && !isStarted && (
-            <span className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/30">
-              <Flame className="w-2.5 h-2.5 text-amber-400" />
+            <span className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-rose-950/60 text-rose-300 border border-rose-800/40">
+              <Flame className="w-2.5 h-2.5 text-rose-400" />
               Set Pick
             </span>
           )}
@@ -144,7 +144,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
                 <span
                   className={`text-xs font-black px-2.5 py-1 rounded-lg tracking-wider ${
                     mode === 'SERIOUS'
-                      ? 'bg-gradient-to-r from-red-950 to-amber-950 border border-red-500/40 text-amber-300 shadow-sm'
+                      ? 'bg-rose-950/40 border border-rose-900/40 text-rose-300 shadow-sm'
                       : 'bg-slate-800/70 text-slate-400'
                   }`}
                 >
@@ -159,7 +159,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
             <div
               className={`w-11 h-11 sm:w-14 sm:h-14 rounded-full p-1.5 sm:p-2 flex items-center justify-center mb-1.5 sm:mb-2 shadow-inner border transition-colors ${
                 mode === 'SERIOUS'
-                  ? 'bg-red-950/40 border-red-900/50'
+                  ? 'bg-rose-950/30 border-rose-900/40'
                   : 'bg-slate-800/80 border-slate-700/60'
               }`}
             >
@@ -231,12 +231,12 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
                 className={`w-full xs:w-auto flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2.5 sm:py-1.5 rounded-xl transition-all shadow-md min-h-[42px] sm:min-h-0 ${
                   mode === 'BASIC'
                     ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'
-                    : 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-white shadow-lg shadow-red-500/30 active:scale-95'
+                    : 'bg-rose-700 hover:bg-rose-600 text-white shadow-md shadow-rose-950/40 active:scale-95'
                 }`}
               >
                 {mode === 'SERIOUS' ? (
                   <>
-                    <Flame className="w-3.5 h-3.5 text-amber-200" />
+                    <Flame className="w-3.5 h-3.5 text-rose-300" />
                     <span>{activeModePredictions.length > 0 ? 'Edit Serious Pick' : '+ Add to Serious Set'}</span>
                   </>
                 ) : (

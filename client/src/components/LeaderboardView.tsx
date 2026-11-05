@@ -15,13 +15,13 @@ import {
   TrendingUp,
   CheckCircle2,
   BarChart3,
-  FlameKindling,
   Crown,
   ShieldCheck,
+  Calendar,
 } from 'lucide-react';
 import { UserProfileModal } from './UserProfileModal';
 
-export type LeaderboardSection = 'points' | 'streak' | 'accuracy' | 'wins';
+export type LeaderboardSection = 'weekly' | 'points' | 'streak' | 'accuracy' | 'wins';
 
 interface LeaderboardViewProps {
   onOpenAuth?: () => void;
@@ -30,9 +30,10 @@ interface LeaderboardViewProps {
 export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) => {
   const { isAuthenticated } = useAuth();
   const [activeMode, setActiveMode] = useState<'BASIC' | 'SERIOUS'>('BASIC');
-  const [activeSection, setActiveSection] = useState<LeaderboardSection>('points');
+  const [activeSection, setActiveSection] = useState<LeaderboardSection>('weekly');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [spotlights, setSpotlights] = useState<{
+    topWeekly?: any;
     topPoints?: any;
     hottestStreak?: any;
     bestStreakRecord?: any;
@@ -62,7 +63,6 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
   }, [activeMode, activeSection]);
 
   const topThree = leaderboard.slice(0, 3);
-  const restOfLeaders = leaderboard.slice(3);
 
   return (
     <div className="space-y-6">
@@ -74,11 +74,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
               <Trophy className="w-4 h-4" />
             </div>
             <h2 className="text-base sm:text-lg font-black text-white">
-              Community Leaderboards & Streaks
+              Community Leaderboards & Rankings
             </h2>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Browse overall point leaders, hottest active win streaks, sniper accuracy, and top grinders.
+            Track weekly top performers (who got the most points that week), overall bankroll, winning streaks, and accuracy.
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
             onClick={() => setActiveMode('SERIOUS')}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               activeMode === 'SERIOUS'
-                ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md shadow-red-500/30 font-black'
+                ? 'bg-rose-700 text-white shadow-md shadow-rose-950/40 font-black'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -118,7 +118,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
             <div>
               <p className="text-xs font-bold text-white">Viewing Leaderboard as Guest</p>
               <p className="text-[11px] text-slate-400">
-                You can browse top rankings, win streaks, and sniper accuracy across the community. Sign in or register to join the leaderboard and track your personal rank!
+                You can browse weekly rankings, all-time standings, and accuracy across the community. Sign in or register to join the leaderboard!
               </p>
             </div>
           </div>
@@ -134,8 +134,38 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
       )}
 
       {/* ================= HALL OF FAME SPOTLIGHT CARDS ================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Spotlight 1: Points Titan */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        {/* Spotlight 1: Weekly Champion */}
+        <div
+          onClick={() => spotlights.topWeekly && setSelectedUserId(spotlights.topWeekly.id)}
+          className="p-3.5 rounded-2xl bg-gradient-to-br from-teal-950/40 via-slate-900 to-slate-950 border border-teal-500/40 hover:border-teal-300 cursor-pointer transition-all shadow-md group relative overflow-hidden"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-teal-400 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-teal-400" />
+              <span>Weekly Leader</span>
+            </span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/20 text-teal-300 font-bold">
+              This Week
+            </span>
+          </div>
+          <div className="text-sm font-black text-white truncate group-hover:text-teal-300 transition-colors">
+            {spotlights.topWeekly ? spotlights.topWeekly.username : '---'}
+          </div>
+          <div className="text-xl font-black text-teal-400 font-mono mt-0.5">
+            +{spotlights.topWeekly ? (spotlights.topWeekly.weekly_points || 0) : 0}{' '}
+            <span className="text-[10px] font-sans text-slate-400 font-normal">pts this wk</span>
+          </div>
+          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+            <span>General: {spotlights.topWeekly ? spotlights.topWeekly.points : 0} pts</span>
+            <span className="text-cyan-400 group-hover:underline flex items-center gap-0.5">
+              <span>View</span>
+              <Eye className="w-2.5 h-2.5" />
+            </span>
+          </div>
+        </div>
+
+        {/* Spotlight 2: Points Titan (All-Time General) */}
         <div
           onClick={() => spotlights.topPoints && setSelectedUserId(spotlights.topPoints.id)}
           className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border border-amber-500/30 hover:border-amber-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
@@ -143,10 +173,10 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-400 flex items-center gap-1">
               <Crown className="w-3.5 h-3.5 text-amber-400" />
-              <span>Points Titan</span>
+              <span>All-Time Leader</span>
             </span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">
-              #1 Bankroll
+              General #1
             </span>
           </div>
           <div className="text-sm font-black text-white truncate group-hover:text-amber-300 transition-colors">
@@ -154,7 +184,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           </div>
           <div className="text-xl font-black text-amber-400 font-mono mt-0.5">
             {spotlights.topPoints ? spotlights.topPoints.points : 0}{' '}
-            <span className="text-[10px] font-sans text-slate-400 font-normal">pts</span>
+            <span className="text-[10px] font-sans text-slate-400 font-normal">pts total</span>
           </div>
           <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
             <span>Streak: {spotlights.topPoints?.streak || 0} 🔥</span>
@@ -165,24 +195,24 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           </div>
         </div>
 
-        {/* Spotlight 2: Hottest Streak on Fire */}
+        {/* Spotlight 3: Hottest Streak */}
         <div
           onClick={() => spotlights.hottestStreak && setSelectedUserId(spotlights.hottestStreak.id)}
-          className="p-3.5 rounded-2xl bg-gradient-to-br from-red-950/40 via-slate-900 to-slate-950 border border-red-500/40 hover:border-red-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
+          className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-950/40 via-slate-900 to-slate-950 border border-rose-900/40 hover:border-rose-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] uppercase tracking-wider font-extrabold text-red-400 flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-rose-400 flex items-center gap-1">
+              <Flame className="w-3.5 h-3.5 text-rose-400" />
               <span>Hottest Streak</span>
             </span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-bold animate-pulse">
-              On Fire 🔥
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold">
+              Form 🔥
             </span>
           </div>
-          <div className="text-sm font-black text-white truncate group-hover:text-red-300 transition-colors">
+          <div className="text-sm font-black text-white truncate group-hover:text-rose-300 transition-colors">
             {spotlights.hottestStreak ? spotlights.hottestStreak.username : '---'}
           </div>
-          <div className="text-xl font-black text-red-400 font-mono mt-0.5 flex items-center gap-1.5">
+          <div className="text-xl font-black text-rose-400 font-mono mt-0.5 flex items-center gap-1.5">
             <span>{spotlights.hottestStreak ? spotlights.hottestStreak.streak : 0} Wins</span>
             <span className="text-xs">🔥</span>
           </div>
@@ -195,7 +225,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           </div>
         </div>
 
-        {/* Spotlight 3: All-Time Streak Record */}
+        {/* Spotlight 4: All-Time Streak Record */}
         <div
           onClick={() => spotlights.bestStreakRecord && setSelectedUserId(spotlights.bestStreakRecord.id)}
           className="p-3.5 rounded-2xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 hover:border-purple-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
@@ -206,7 +236,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
               <span>Record Streak</span>
             </span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold">
-              All-Time Peak
+              Peak
             </span>
           </div>
           <div className="text-sm font-black text-white truncate group-hover:text-purple-300 transition-colors">
@@ -225,7 +255,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           </div>
         </div>
 
-        {/* Spotlight 4: Accuracy Sniper */}
+        {/* Spotlight 5: Accuracy Sniper */}
         <div
           onClick={() => spotlights.highestAccuracy && setSelectedUserId(spotlights.highestAccuracy.id)}
           className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 hover:border-emerald-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
@@ -236,7 +266,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
               <span>Top Accuracy</span>
             </span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-              Precision
+              Sniper
             </span>
           </div>
           <div className="text-sm font-black text-white truncate group-hover:text-emerald-300 transition-colors">
@@ -244,7 +274,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           </div>
           <div className="text-xl font-black text-emerald-400 font-mono mt-0.5">
             {spotlights.highestAccuracy ? spotlights.highestAccuracy.accuracy : 0}%{' '}
-            <span className="text-[10px] font-sans text-slate-400 font-normal">win rate</span>
+            <span className="text-[10px] font-sans text-slate-400 font-normal">accuracy</span>
           </div>
           <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
             <span>
@@ -260,18 +290,18 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
         </div>
       </div>
 
-      {/* ================= DEDICATED HOTTEST STREAKS SHOWCASE SECTION ================= */}
+      {/* ================= DEDICATED HOTTEST STREAKS SHOWCASE ================= */}
       {hotStreakers.length > 0 && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-red-950/40 via-slate-900 to-amber-950/40 border border-red-500/40 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-3 border-b border-red-500/20">
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-950/30 via-slate-900 to-slate-950 border border-rose-900/40 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-3 border-b border-rose-900/30">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center border border-red-500/40">
-                <Flame className="w-4 h-4 text-red-400 animate-pulse" />
+              <div className="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/40">
+                <Flame className="w-4 h-4 text-rose-400" />
               </div>
               <div>
                 <h3 className="text-sm font-black text-white flex items-center gap-2">
-                  <span>Hottest Streaks on PitchPredict</span>
-                  <span className="px-2 py-0.2 rounded text-[10px] font-black uppercase bg-red-500 text-slate-950">
+                  <span>Hottest Active Streaks</span>
+                  <span className="px-2 py-0.2 rounded text-[10px] font-black uppercase bg-rose-600 text-white">
                     Live Form 🔥
                   </span>
                 </h3>
@@ -285,8 +315,8 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
               onClick={() => setActiveSection('streak')}
               className={`px-3 py-1 rounded-xl text-xs font-bold border transition-all self-start sm:self-auto flex items-center gap-1.5 ${
                 activeSection === 'streak'
-                  ? 'bg-red-500 text-slate-950 border-red-400 font-black'
-                  : 'bg-slate-950 text-red-300 border-red-500/30 hover:bg-slate-800'
+                  ? 'bg-rose-700 text-white border-rose-500 font-black'
+                  : 'bg-slate-950 text-rose-300 border-rose-900/40 hover:bg-slate-800'
               }`}
             >
               <TrendingUp className="w-3.5 h-3.5" />
@@ -303,18 +333,18 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                   onClick={() => setSelectedUserId(user.id)}
                   className={`p-2.5 sm:p-3 rounded-xl border text-center cursor-pointer transition-all hover:-translate-y-1 group relative overflow-hidden ${
                     isFirst
-                      ? 'bg-gradient-to-b from-red-950/70 to-slate-950 border-red-500 shadow-lg shadow-red-950/40 ring-1 ring-red-500/50'
-                      : 'bg-slate-950/80 border-slate-800 hover:border-red-500/50'
+                      ? 'bg-gradient-to-b from-rose-950/50 to-slate-950 border-rose-700/60 shadow-lg text-white'
+                      : 'bg-slate-950/80 border-slate-800 hover:border-rose-900/50'
                   }`}
                 >
                   <div className="flex items-center justify-center gap-1 mb-1">
-                    <span className="text-xs font-black text-red-400">#{idx + 1}</span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-bold">
+                    <span className="text-xs font-black text-rose-400">#{idx + 1}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold">
                       {user.streak_tier}
                     </span>
                   </div>
 
-                  <h5 className="font-black text-white text-xs truncate group-hover:text-red-300 transition-colors">
+                  <h5 className="font-black text-white text-xs truncate group-hover:text-rose-300 transition-colors">
                     {user.username}
                   </h5>
 
@@ -342,7 +372,8 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
               Rankings Section:
             </span>
             <span className="text-xs text-white font-bold">
-              {activeSection === 'points' && '🏆 Overall Points Bankroll'}
+              {activeSection === 'weekly' && '📅 Weekly Ranking (Most Points Earned This Week)'}
+              {activeSection === 'points' && '🏆 Overall Points Bankroll (All-Time General)'}
               {activeSection === 'streak' && '🔥 Hottest Winning Streaks'}
               {activeSection === 'accuracy' && '🎯 Highest Prediction Accuracy'}
               {activeSection === 'wins' && '⚡ Most Total Wins'}
@@ -352,6 +383,18 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           {/* Section Filter Pills */}
           <div className="flex flex-wrap items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
+              onClick={() => setActiveSection('weekly')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeSection === 'weekly'
+                  ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md shadow-teal-500/20 font-black'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Top This Week</span>
+            </button>
+
+            <button
               onClick={() => setActiveSection('points')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeSection === 'points'
@@ -360,14 +403,14 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
               }`}
             >
               <Trophy className="w-3.5 h-3.5" />
-              <span>Most Points</span>
+              <span>Most Points (General)</span>
             </button>
 
             <button
               onClick={() => setActiveSection('streak')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeSection === 'streak'
-                  ? 'bg-red-500 text-slate-950 shadow-md shadow-red-500/20 font-black'
+                  ? 'bg-rose-700 text-white shadow-md shadow-rose-950/40 font-black'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -423,8 +466,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                     </h4>
 
                     {/* Section primary metric */}
-                    {activeSection === 'streak' ? (
-                      <div className="text-2xl font-black text-red-400 font-mono mt-1">
+                    {activeSection === 'weekly' ? (
+                      <div className="text-2xl font-black text-teal-400 font-mono mt-1">
+                        +{topThree[1].weekly_points || 0}{' '}
+                        <span className="text-xs text-slate-400 font-sans font-medium">pts this week</span>
+                      </div>
+                    ) : activeSection === 'streak' ? (
+                      <div className="text-2xl font-black text-rose-400 font-mono mt-1">
                         {topThree[1].streak} 🔥{' '}
                         <span className="text-xs text-slate-400 font-sans font-medium">wins run</span>
                       </div>
@@ -441,13 +489,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                     ) : (
                       <div className="text-2xl font-black text-slate-200 font-mono mt-1">
                         {topThree[1].points}{' '}
-                        <span className="text-xs text-slate-400 font-sans font-medium">pts</span>
+                        <span className="text-xs text-slate-400 font-sans font-medium">pts total</span>
                       </div>
                     )}
 
-                    <div className="text-[11px] text-slate-400 mt-2">
-                      Streak: <strong className="text-slate-200">{topThree[1].streak} 🔥</strong> • Peak:{' '}
-                      <strong className="text-slate-200">{topThree[1].best_streak}</strong>
+                    <div className="text-[11px] text-slate-400 mt-2 flex flex-col items-center gap-0.5">
+                      <span>General Bankroll: <strong className="text-amber-400">{topThree[1].points} pts</strong></span>
+                      <span>Streak: <strong className="text-slate-200">{topThree[1].streak} 🔥</strong> • Peak: {topThree[1].best_streak}</span>
                     </div>
 
                     <button
@@ -473,15 +521,20 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                       👑
                     </div>
                     <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">
-                      #1 {activeSection === 'streak' ? 'Streak Leader' : activeSection === 'accuracy' ? 'Precision Leader' : activeSection === 'wins' ? 'Wins Leader' : 'Champion'}
+                      #1 {activeSection === 'weekly' ? 'Weekly Champion' : activeSection === 'streak' ? 'Streak Leader' : activeSection === 'accuracy' ? 'Precision Leader' : activeSection === 'wins' ? 'Wins Leader' : 'Champion'}
                     </span>
                     <h4 className="text-base font-black text-white mt-1 group-hover:text-amber-300 transition-colors">
                       {topThree[0].username}
                     </h4>
 
                     {/* Section primary metric */}
-                    {activeSection === 'streak' ? (
-                      <div className="text-3xl font-black text-red-400 font-mono mt-1">
+                    {activeSection === 'weekly' ? (
+                      <div className="text-3xl font-black text-teal-400 font-mono mt-1">
+                        +{topThree[0].weekly_points || 0}{' '}
+                        <span className="text-xs text-slate-400 font-sans font-medium">pts this week</span>
+                      </div>
+                    ) : activeSection === 'streak' ? (
+                      <div className="text-3xl font-black text-rose-400 font-mono mt-1">
                         {topThree[0].streak} 🔥{' '}
                         <span className="text-xs text-slate-400 font-sans font-medium">wins in a row</span>
                       </div>
@@ -498,15 +551,18 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                     ) : (
                       <div className="text-3xl font-black text-amber-400 font-mono mt-1">
                         {topThree[0].points}{' '}
-                        <span className="text-xs text-slate-400 font-sans font-medium">pts</span>
+                        <span className="text-xs text-slate-400 font-sans font-medium">pts total</span>
                       </div>
                     )}
 
-                    <div className="text-xs text-slate-300 mt-2 flex items-center gap-1.5 font-semibold">
-                      <span>🔥 Active Run:</span>
-                      <strong className="text-amber-400 font-mono">{topThree[0].streak} 🔥</strong>
-                      <span className="text-slate-500">•</span>
-                      <span>Best: {topThree[0].best_streak}</span>
+                    <div className="text-xs text-slate-300 mt-2 flex flex-col items-center gap-1 font-semibold">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">All-Time General:</span>
+                        <strong className="text-amber-400 font-mono">{topThree[0].points} pts</strong>
+                        <span className="text-slate-600">•</span>
+                        <span className="text-slate-400">Streak:</span>
+                        <strong className="text-rose-400 font-mono">{topThree[0].streak} 🔥</strong>
+                      </div>
                     </div>
 
                     <button
@@ -537,8 +593,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                     </h4>
 
                     {/* Section primary metric */}
-                    {activeSection === 'streak' ? (
-                      <div className="text-2xl font-black text-red-400 font-mono mt-1">
+                    {activeSection === 'weekly' ? (
+                      <div className="text-2xl font-black text-teal-400 font-mono mt-1">
+                        +{topThree[2].weekly_points || 0}{' '}
+                        <span className="text-xs text-slate-400 font-sans font-medium">pts this week</span>
+                      </div>
+                    ) : activeSection === 'streak' ? (
+                      <div className="text-2xl font-black text-rose-400 font-mono mt-1">
                         {topThree[2].streak} 🔥{' '}
                         <span className="text-xs text-slate-400 font-sans font-medium">wins run</span>
                       </div>
@@ -555,13 +616,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                     ) : (
                       <div className="text-2xl font-black text-slate-200 font-mono mt-1">
                         {topThree[2].points}{' '}
-                        <span className="text-xs text-slate-400 font-sans font-medium">pts</span>
+                        <span className="text-xs text-slate-400 font-sans font-medium">pts total</span>
                       </div>
                     )}
 
-                    <div className="text-[11px] text-slate-400 mt-2">
-                      Streak: <strong className="text-slate-200">{topThree[2].streak} 🔥</strong> • Peak:{' '}
-                      <strong className="text-slate-200">{topThree[2].best_streak}</strong>
+                    <div className="text-[11px] text-slate-400 mt-2 flex flex-col items-center gap-0.5">
+                      <span>General Bankroll: <strong className="text-amber-400">{topThree[2].points} pts</strong></span>
+                      <span>Streak: <strong className="text-slate-200">{topThree[2].streak} 🔥</strong> • Peak: {topThree[2].best_streak}</span>
                     </div>
 
                     <button
@@ -586,11 +647,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                   <span className="w-8 text-center">Rank</span>
                   <span>User</span>
                 </div>
-                <div className="flex items-center gap-6 sm:gap-10">
+                <div className="flex items-center gap-4 sm:gap-8">
                   {/* Streak Column Header */}
                   <span
                     className={`flex items-center gap-1 ${
-                      activeSection === 'streak' ? 'text-red-400 font-black' : ''
+                      activeSection === 'streak' ? 'text-rose-400 font-black' : ''
                     }`}
                   >
                     <Flame className="w-3.5 h-3.5" />
@@ -617,13 +678,22 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                     <span>{activeMode === 'BASIC' ? 'Correct' : 'Sets'}</span>
                   </span>
 
-                  {/* Points Column Header */}
+                  {/* Weekly Points Column */}
+                  <span
+                    className={`w-20 text-right ${
+                      activeSection === 'weekly' ? 'text-teal-400 font-black' : ''
+                    }`}
+                  >
+                    Weekly
+                  </span>
+
+                  {/* Points (General) Column Header */}
                   <span
                     className={`w-20 text-right ${
                       activeSection === 'points' ? 'text-amber-400 font-black' : ''
                     }`}
                   >
-                    Points
+                    General
                   </span>
                 </div>
               </div>
@@ -654,8 +724,8 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                           <div className="font-bold text-white text-sm group-hover:text-amber-300 transition-colors flex items-center gap-2">
                             <span>{user.username}</span>
                             {user.is_on_fire && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded font-black bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-0.5">
-                                <Flame className="w-3 h-3 text-red-400 animate-pulse" />
+                              <span className="text-[10px] px-1.5 py-0.2 rounded font-black bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-0.5">
+                                <Flame className="w-3 h-3 text-rose-400" />
                                 <span>{user.streak_tier}</span>
                               </span>
                             )}
@@ -666,12 +736,12 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 sm:gap-10">
+                      <div className="flex items-center gap-4 sm:gap-8">
                         {/* Streak Badge */}
                         <div
                           className={`flex items-center gap-1.5 font-mono ${
                             user.streak > 0
-                              ? 'text-red-400 font-bold bg-red-950/40 px-2 py-0.5 rounded-lg border border-red-500/30'
+                              ? 'text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded-lg border border-rose-900/40'
                               : 'text-slate-400'
                           }`}
                         >
@@ -708,14 +778,22 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                           ) : (
                             <span>
                               <strong className="text-emerald-400">{user.won_sets}W</strong> /{' '}
-                              <strong className="text-red-400">{user.lost_sets}L</strong>
+                              <strong className="text-rose-400">{user.lost_sets}L</strong>
                             </span>
                           )}
                         </div>
 
-                        {/* Points & Action Button */}
+                        {/* Weekly Points */}
+                        <div className="w-20 text-right">
+                          <span className="font-mono font-black text-sm text-teal-400">
+                            +{user.weekly_points ?? 0}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">this wk</span>
+                        </div>
+
+                        {/* General Points & Action Button */}
                         <div className="text-right flex items-center gap-3">
-                          <div className="w-16 sm:w-20">
+                          <div className="w-20">
                             <span
                               className={`font-mono font-black text-sm ${
                                 activeMode === 'BASIC' ? 'text-emerald-400' : 'text-amber-400'
@@ -723,7 +801,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                             >
                               {user.points}
                             </span>
-                            <span className="text-[10px] text-slate-400 block">pts</span>
+                            <span className="text-[10px] text-slate-400 block">general</span>
                           </div>
 
                           <button
@@ -732,7 +810,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
                               setSelectedUserId(user.id);
                             }}
                             className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors text-[11px] font-bold flex items-center gap-1 shrink-0"
-                            title={`View ${user.username}'s past predictions`}
+                            title={`View ${user.username}'s predictions`}
                           >
                             <Eye className="w-3.5 h-3.5 text-cyan-400" />
                             <span className="hidden md:inline">Predictions</span>
@@ -748,7 +826,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
         )}
       </div>
 
-      {/* User Past Predictions Profile Modal */}
+      {/* User Predictions Profile Modal */}
       {selectedUserId && (
         <UserProfileModal
           userId={selectedUserId}

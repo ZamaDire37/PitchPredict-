@@ -1,4 +1,4 @@
-export type MarketCategory = 'MATCH_RESULT' | 'GOALS' | 'BTTS' | 'CORNERS' | 'OTHER';
+export type MarketCategory = 'GOALS' | 'CORNERS' | 'FIRST_HALF' | 'BOOKINGS' | 'MATCH_RESULT';
 
 export interface MarketOption {
   id: string;
@@ -28,25 +28,11 @@ export interface CategoryInfo {
 
 export const CATEGORIES: CategoryInfo[] = [
   {
-    id: 'MATCH_RESULT',
-    label: 'Match Result',
-    badge: '5 Markets',
-    icon: 'Trophy',
-    description: 'Full-time winner, double chance, draw no bet, handicap & combos.',
-  },
-  {
     id: 'GOALS',
     label: 'Goals',
-    badge: '7 Markets',
+    badge: '12 Markets',
     icon: 'Target',
-    description: 'Over/under lines, exact scores, team totals, brackets & odd/even.',
-  },
-  {
-    id: 'BTTS',
-    label: 'BTTS',
-    badge: '4 Markets',
-    icon: 'Flame',
-    description: 'Both teams to score, BTTS combos, over/under combos & double chances.',
+    description: 'Over/under lines, exact scores, BTTS, team totals, brackets & odd/even.',
   },
   {
     id: 'CORNERS',
@@ -56,84 +42,29 @@ export const CATEGORIES: CategoryInfo[] = [
     description: 'Total corner over/under lines, corner winner, team corners & bands.',
   },
   {
-    id: 'OTHER',
-    label: 'Other Markets',
-    badge: '5 Markets',
-    icon: 'Sparkles',
-    description: 'Win to nil, clean sheets, victory margins & scoring distributions.',
+    id: 'FIRST_HALF',
+    label: 'First Half',
+    badge: '4 Markets',
+    icon: 'Clock',
+    description: 'Halftime 1X2, first half goals over/under, halftime BTTS & double chance.',
+  },
+  {
+    id: 'BOOKINGS',
+    label: 'Bookings',
+    badge: '3 Markets',
+    icon: 'AlertTriangle',
+    description: 'Total cards over/under lines, red card shown & team cards.',
+  },
+  {
+    id: 'MATCH_RESULT',
+    label: 'Match Result',
+    badge: '9 Markets',
+    icon: 'Trophy',
+    description: 'Full-time winner, double chance, draw no bet, handicap, win to nil & combos.',
   },
 ];
 
 export const CLIENT_MARKETS: ClientMarketDefinition[] = [
-  // ================= MATCH RESULT =================
-  {
-    id: 'MATCH_WINNER',
-    name: 'Match Winner (1X2)',
-    category: 'MATCH_RESULT',
-    shortDesc: 'Pick the outright winner after regular 90 minutes.',
-    icon: 'Trophy',
-    badge: 'Core Market',
-    getOptions: (home, away) => [
-      { id: 'HOME', label: `${home} Win (1)`, oddsPoints: 10, badge: 'Home' },
-      { id: 'DRAW', label: 'Draw (X)', oddsPoints: 15, badge: 'Draw' },
-      { id: 'AWAY', label: `${away} Win (2)`, oddsPoints: 10, badge: 'Away' },
-    ],
-  },
-  {
-    id: 'DOUBLE_CHANCE',
-    name: 'Double Chance',
-    category: 'MATCH_RESULT',
-    shortDesc: 'Cover two out of three possible full-time outcomes.',
-    icon: 'Shield',
-    badge: 'Safer Odds',
-    getOptions: (home, away) => [
-      { id: '1X', label: `1X (${home} or Draw)`, oddsPoints: 6, helper: 'Home win or draw' },
-      { id: '12', label: '12 (Home or Away Win)', oddsPoints: 6, helper: 'Either team wins' },
-      { id: 'X2', label: `X2 (Draw or ${away})`, oddsPoints: 6, helper: 'Draw or away win' },
-    ],
-  },
-  {
-    id: 'DRAW_NO_BET',
-    name: 'Draw No Bet (DNB)',
-    category: 'MATCH_RESULT',
-    shortDesc: 'Back a team to win. If the match ends in a draw, the pick is pushed/refunded.',
-    icon: 'RefreshCw',
-    badge: 'Low Risk',
-    getOptions: (home, away) => [
-      { id: 'HOME_DNB', label: `${home} DNB`, oddsPoints: 8 },
-      { id: 'AWAY_DNB', label: `${away} DNB`, oddsPoints: 8 },
-    ],
-  },
-  {
-    id: 'MATCH_RESULT_AND_TOTAL_GOALS',
-    name: 'Result + Total Goals (2.5 Combo)',
-    category: 'MATCH_RESULT',
-    shortDesc: 'Combo prediction: Full-time winner combined with Over/Under 2.5 total goals.',
-    icon: 'Combine',
-    badge: 'Popular Combo',
-    getOptions: (home, away) => [
-      { id: 'HOME_OVER_2.5', label: `${home} Win & Over 2.5 Goals`, oddsPoints: 18, badge: 'Action Win' },
-      { id: 'HOME_UNDER_2.5', label: `${home} Win & Under 2.5 Goals`, oddsPoints: 14, badge: 'Controlled' },
-      { id: 'DRAW_OVER_2.5', label: 'Draw & Over 2.5 Goals (e.g. 2-2)', oddsPoints: 24, badge: 'Super Odds' },
-      { id: 'DRAW_UNDER_2.5', label: 'Draw & Under 2.5 Goals (0-0, 1-1)', oddsPoints: 16 },
-      { id: 'AWAY_OVER_2.5', label: `${away} Win & Over 2.5 Goals`, oddsPoints: 18, badge: 'Action Win' },
-      { id: 'AWAY_UNDER_2.5', label: `${away} Win & Under 2.5 Goals`, oddsPoints: 14, badge: 'Controlled' },
-    ],
-  },
-  {
-    id: 'HANDICAP_RESULT',
-    name: 'European Handicap (-1)',
-    category: 'MATCH_RESULT',
-    shortDesc: 'Home team starts with a 1-goal disadvantage (-1 goal handicap).',
-    icon: 'Scale',
-    badge: 'Handicap',
-    getOptions: (home, away) => [
-      { id: 'HOME_MINUS_1', label: `${home} (-1) [Wins by 2+ Goals]`, oddsPoints: 16, badge: 'Dominant' },
-      { id: 'HANDICAP_TIE', label: `Handicap Tie (-1) [${home} by Exactly 1]`, oddsPoints: 18, badge: 'Tight Margin' },
-      { id: 'AWAY_PLUS_1', label: `${away} (+1) [Win or Draw]`, oddsPoints: 14, badge: 'Safety' },
-    ],
-  },
-
   // ================= GOALS =================
   {
     id: 'GOALS_OVER_UNDER',
@@ -191,6 +122,31 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
     ],
   },
   {
+    id: 'BTTS',
+    name: 'Both Teams to Score (BTTS)',
+    category: 'GOALS',
+    shortDesc: 'Predict whether both teams will score at least one goal in regular time.',
+    icon: 'Flame',
+    badge: 'Popular',
+    getOptions: () => [
+      { id: 'YES', label: 'Yes (Both Teams Score)', oddsPoints: 10, badge: 'Popular' },
+      { id: 'NO', label: 'No (At least one Clean Sheet)', oddsPoints: 10 },
+    ],
+  },
+  {
+    id: 'FIRST_TEAM_TO_SCORE',
+    name: 'First Team to Score',
+    category: 'GOALS',
+    shortDesc: 'Which club will score the opening goal of the match?',
+    icon: 'Zap',
+    badge: 'Opening Goal',
+    getOptions: (home, away) => [
+      { id: 'HOME_SCORES_FIRST', label: `${home} Scores First`, oddsPoints: 10, badge: 'Home First' },
+      { id: 'AWAY_SCORES_FIRST', label: `${away} Scores First`, oddsPoints: 12, badge: 'Away First' },
+      { id: 'NO_GOALS_FIRST', label: 'No Goals (0-0 Scoreline)', oddsPoints: 35, badge: 'No Goals' },
+    ],
+  },
+  {
     id: 'HOME_TEAM_GOALS',
     name: 'Home Team Total Goals',
     category: 'GOALS',
@@ -223,6 +179,20 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
     ],
   },
   {
+    id: 'TOTAL_GOALS_RANGE',
+    name: 'Total Goals Range',
+    category: 'GOALS',
+    shortDesc: 'Select the goal range for the full match.',
+    icon: 'Layers',
+    badge: '4 Goal Bands',
+    getOptions: () => [
+      { id: '0-1_GOALS', label: '0 - 1 Goals (Low Scoring)', oddsPoints: 12 },
+      { id: '2-3_GOALS', label: '2 - 3 Goals (Normal Range)', oddsPoints: 8, badge: 'Top Pick' },
+      { id: '4-5_GOALS', label: '4 - 5 Goals (High Scoring)', oddsPoints: 16 },
+      { id: '6+_GOALS', label: '6+ Goals (Extreme Fest)', oddsPoints: 28, badge: 'High Reward' },
+    ],
+  },
+  {
     id: 'EXACT_TOTAL_GOALS',
     name: 'Exact Total Goals',
     category: 'GOALS',
@@ -239,20 +209,6 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
     ],
   },
   {
-    id: 'TOTAL_GOALS_RANGE',
-    name: 'Total Goals Range',
-    category: 'GOALS',
-    shortDesc: 'Select the goal range for the full match.',
-    icon: 'Layers',
-    badge: '4 Goal Bands',
-    getOptions: () => [
-      { id: '0-1_GOALS', label: '0 - 1 Goals (Low Scoring)', oddsPoints: 12 },
-      { id: '2-3_GOALS', label: '2 - 3 Goals (Normal Range)', oddsPoints: 8, badge: 'Top Pick' },
-      { id: '4-5_GOALS', label: '4 - 5 Goals (High Scoring)', oddsPoints: 16 },
-      { id: '6+_GOALS', label: '6+ Goals (Extreme Fest)', oddsPoints: 28, badge: 'High Reward' },
-    ],
-  },
-  {
     id: 'ODD_EVEN_GOALS',
     name: 'Odd / Even Total Goals',
     category: 'GOALS',
@@ -264,24 +220,10 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
       { id: 'EVEN', label: 'Even Goals (e.g. 0, 2, 4)', oddsPoints: 10 },
     ],
   },
-
-  // ================= BTTS =================
-  {
-    id: 'BTTS',
-    name: 'Both Teams to Score (BTTS)',
-    category: 'BTTS',
-    shortDesc: 'Predict whether both teams will score at least one goal in regular time.',
-    icon: 'Flame',
-    badge: 'Popular',
-    getOptions: () => [
-      { id: 'YES', label: 'Yes (Both Teams Score)', oddsPoints: 10, badge: 'Popular' },
-      { id: 'NO', label: 'No (At least one Clean Sheet)', oddsPoints: 10 },
-    ],
-  },
   {
     id: 'BTTS_AND_WIN',
     name: 'BTTS + Match Winner Combo',
-    category: 'BTTS',
+    category: 'GOALS',
     shortDesc: 'Both teams score AND a team wins or match is drawn.',
     icon: 'Combine',
     badge: 'High Value',
@@ -294,7 +236,7 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
   {
     id: 'BTTS_AND_OVER_UNDER',
     name: 'BTTS + Total Goals (Over/Under 2.5)',
-    category: 'BTTS',
+    category: 'GOALS',
     shortDesc: 'Combine both teams scoring with over or under 2.5 total goals.',
     icon: 'Sparkles',
     badge: 'Special Combo',
@@ -308,7 +250,7 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
   {
     id: 'BTTS_OR_OVER_2_5',
     name: 'BTTS or Over 2.5 Goals',
-    category: 'BTTS',
+    category: 'GOALS',
     shortDesc: 'Wins if either both teams score OR there are 3+ total goals in the match.',
     icon: 'ShieldCheck',
     badge: 'Double Chance Style',
@@ -402,11 +344,175 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
     ],
   },
 
-  // ================= OTHER MARKETS =================
+  // ================= FIRST HALF =================
+  {
+    id: 'FIRST_HALF_RESULT',
+    name: 'First Half Result (Halftime 1X2)',
+    category: 'FIRST_HALF',
+    shortDesc: 'Outcome at half-time whistle (45 min + stoppage).',
+    icon: 'Clock',
+    badge: 'Halftime 1X2',
+    getOptions: (home, away) => [
+      { id: '1_HT', label: `${home} Ahead at Halftime`, oddsPoints: 14, badge: 'Home Lead' },
+      { id: 'X_HT', label: 'Draw at Halftime (Level)', oddsPoints: 10, badge: 'Halftime Draw' },
+      { id: '2_HT', label: `${away} Ahead at Halftime`, oddsPoints: 14, badge: 'Away Lead' },
+    ],
+  },
+  {
+    id: 'FIRST_HALF_GOALS_OU',
+    name: 'First Half Total Goals (Over / Under)',
+    category: 'FIRST_HALF',
+    shortDesc: 'Total goals scored exclusively during the first 45 minutes.',
+    icon: 'Clock',
+    badge: 'HT Goals',
+    getOptions: () => [
+      { id: 'HT_OVER_0.5', label: 'HT Over 0.5 Goals (At least 1 goal in 1H)', oddsPoints: 7 },
+      { id: 'HT_UNDER_0.5', label: 'HT Under 0.5 Goals (0-0 at Break)', oddsPoints: 14 },
+      { id: 'HT_OVER_1.5', label: 'HT Over 1.5 Goals (2+ goals in 1H)', oddsPoints: 18, badge: 'High Drama' },
+      { id: 'HT_UNDER_1.5', label: 'HT Under 1.5 Goals', oddsPoints: 8 },
+    ],
+  },
+  {
+    id: 'FIRST_HALF_BTTS',
+    name: 'First Half BTTS',
+    category: 'FIRST_HALF',
+    shortDesc: 'Will both teams score before the halftime whistle?',
+    icon: 'Flame',
+    badge: 'Halftime BTTS',
+    getOptions: () => [
+      { id: 'HT_BTTS_YES', label: 'HT BTTS Yes (Both Score in 1H)', oddsPoints: 24, badge: '+24 pts High Odds' },
+      { id: 'HT_BTTS_NO', label: 'HT BTTS No (At least one team scoreless in 1H)', oddsPoints: 6 },
+    ],
+  },
+  {
+    id: 'FIRST_HALF_DOUBLE_CHANCE',
+    name: 'First Half Double Chance',
+    category: 'FIRST_HALF',
+    shortDesc: 'Cover two halftime outcomes at the 45-minute mark.',
+    icon: 'Shield',
+    badge: 'Safe HT',
+    getOptions: (home, away) => [
+      { id: '1X_HT', label: `1X HT (${home} or Draw at HT)`, oddsPoints: 6 },
+      { id: '12_HT', label: '12 HT (Either Team Leads at HT)', oddsPoints: 8 },
+      { id: 'X2_HT', label: `X2 HT (Draw or ${away} at HT)`, oddsPoints: 7 },
+    ],
+  },
+
+  // ================= BOOKINGS & CARDS =================
+  {
+    id: 'TOTAL_CARDS_OVER_UNDER',
+    name: 'Total Cards (Over / Under)',
+    category: 'BOOKINGS',
+    shortDesc: 'Total cards (yellow and red) shown in regular time.',
+    icon: 'AlertTriangle',
+    badge: 'Total Cards',
+    getOptions: () => [
+      { id: 'OVER_3.5_CARDS', label: 'Over 3.5 Total Cards', oddsPoints: 10 },
+      { id: 'UNDER_3.5_CARDS', label: 'Under 3.5 Total Cards', oddsPoints: 12 },
+      { id: 'OVER_4.5_CARDS', label: 'Over 4.5 Total Cards', oddsPoints: 14, badge: 'Popular Line' },
+      { id: 'UNDER_4.5_CARDS', label: 'Under 4.5 Total Cards', oddsPoints: 10 },
+      { id: 'OVER_5.5_CARDS', label: 'Over 5.5 Total Cards', oddsPoints: 18, badge: 'Fiery Match' },
+      { id: 'UNDER_5.5_CARDS', label: 'Under 5.5 Total Cards', oddsPoints: 8 },
+    ],
+  },
+  {
+    id: 'RED_CARD_SHOWN',
+    name: 'Red Card Shown in Match',
+    category: 'BOOKINGS',
+    shortDesc: 'Will any player receive a straight red card or two yellow cards?',
+    icon: 'AlertOctagon',
+    badge: 'High Drama',
+    getOptions: () => [
+      { id: 'RED_CARD_YES', label: 'Yes (Red Card Shown)', oddsPoints: 22, badge: '+22 pts Drama' },
+      { id: 'RED_CARD_NO', label: 'No (Zero Red Cards)', oddsPoints: 6, badge: 'High Probability' },
+    ],
+  },
+  {
+    id: 'MOST_CARDS',
+    name: 'Most Cards Shown (Card Winner)',
+    category: 'BOOKINGS',
+    shortDesc: 'Which team will accumulate the most booking points?',
+    icon: 'Square',
+    badge: 'Disciplinary',
+    getOptions: (home, away) => [
+      { id: 'HOME_MOST_CARDS', label: `${home} Most Cards`, oddsPoints: 12, badge: 'Home' },
+      { id: 'EQUAL_CARDS', label: 'Equal Cards (Tie)', oddsPoints: 20, badge: 'Tie' },
+      { id: 'AWAY_MOST_CARDS', label: `${away} Most Cards`, oddsPoints: 12, badge: 'Away' },
+    ],
+  },
+
+  // ================= MATCH RESULT =================
+  {
+    id: 'MATCH_WINNER',
+    name: 'Match Winner (1X2)',
+    category: 'MATCH_RESULT',
+    shortDesc: 'Pick the outright winner after regular 90 minutes.',
+    icon: 'Trophy',
+    badge: 'Core Market',
+    getOptions: (home, away) => [
+      { id: 'HOME', label: `${home} Win (1)`, oddsPoints: 10, badge: 'Home' },
+      { id: 'DRAW', label: 'Draw (X)', oddsPoints: 15, badge: 'Draw' },
+      { id: 'AWAY', label: `${away} Win (2)`, oddsPoints: 10, badge: 'Away' },
+    ],
+  },
+  {
+    id: 'DOUBLE_CHANCE',
+    name: 'Double Chance',
+    category: 'MATCH_RESULT',
+    shortDesc: 'Cover two out of three possible full-time outcomes.',
+    icon: 'Shield',
+    badge: 'Safer Odds',
+    getOptions: (home, away) => [
+      { id: '1X', label: `1X (${home} or Draw)`, oddsPoints: 6, helper: 'Home win or draw' },
+      { id: '12', label: '12 (Home or Away Win)', oddsPoints: 6, helper: 'Either team wins' },
+      { id: 'X2', label: `X2 (Draw or ${away})`, oddsPoints: 6, helper: 'Draw or away win' },
+    ],
+  },
+  {
+    id: 'DRAW_NO_BET',
+    name: 'Draw No Bet (DNB)',
+    category: 'MATCH_RESULT',
+    shortDesc: 'Back a team to win. If the match ends in a draw, the pick is pushed/refunded.',
+    icon: 'RefreshCw',
+    badge: 'Low Risk',
+    getOptions: (home, away) => [
+      { id: 'HOME_DNB', label: `${home} DNB`, oddsPoints: 8 },
+      { id: 'AWAY_DNB', label: `${away} DNB`, oddsPoints: 8 },
+    ],
+  },
+  {
+    id: 'MATCH_RESULT_AND_TOTAL_GOALS',
+    name: 'Result + Total Goals (2.5 Combo)',
+    category: 'MATCH_RESULT',
+    shortDesc: 'Combo prediction: Full-time winner combined with Over/Under 2.5 total goals.',
+    icon: 'Combine',
+    badge: 'Popular Combo',
+    getOptions: (home, away) => [
+      { id: 'HOME_OVER_2.5', label: `${home} Win & Over 2.5 Goals`, oddsPoints: 18, badge: 'Action Win' },
+      { id: 'HOME_UNDER_2.5', label: `${home} Win & Under 2.5 Goals`, oddsPoints: 14, badge: 'Controlled' },
+      { id: 'DRAW_OVER_2.5', label: 'Draw & Over 2.5 Goals (e.g. 2-2)', oddsPoints: 24, badge: 'Super Odds' },
+      { id: 'DRAW_UNDER_2.5', label: 'Draw & Under 2.5 Goals (0-0, 1-1)', oddsPoints: 16 },
+      { id: 'AWAY_OVER_2.5', label: `${away} Win & Over 2.5 Goals`, oddsPoints: 18, badge: 'Action Win' },
+      { id: 'AWAY_UNDER_2.5', label: `${away} Win & Under 2.5 Goals`, oddsPoints: 14, badge: 'Controlled' },
+    ],
+  },
+  {
+    id: 'HANDICAP_RESULT',
+    name: 'European Handicap (-1)',
+    category: 'MATCH_RESULT',
+    shortDesc: 'Home team starts with a 1-goal disadvantage (-1 goal handicap).',
+    icon: 'Scale',
+    badge: 'Handicap',
+    getOptions: (home, away) => [
+      { id: 'HOME_MINUS_1', label: `${home} (-1) [Wins by 2+ Goals]`, oddsPoints: 16, badge: 'Dominant' },
+      { id: 'HANDICAP_TIE', label: `Handicap Tie (-1) [${home} by Exactly 1]`, oddsPoints: 18, badge: 'Tight Margin' },
+      { id: 'AWAY_PLUS_1', label: `${away} (+1) [Win or Draw]`, oddsPoints: 14, badge: 'Safety' },
+    ],
+  },
   {
     id: 'WIN_TO_NIL',
     name: 'Win to Nil (Clean Sheet Win)',
-    category: 'OTHER',
+    category: 'MATCH_RESULT',
     shortDesc: 'A team wins the match without conceding any goals.',
     icon: 'Shield',
     badge: 'Special Combo',
@@ -419,7 +525,7 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
   {
     id: 'TEAM_TO_SCORE',
     name: 'Scoring Distribution',
-    category: 'OTHER',
+    category: 'MATCH_RESULT',
     shortDesc: 'Which clubs will get on the scoresheet during the match?',
     icon: 'Users',
     badge: 'Team Distribution',
@@ -433,7 +539,7 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
   {
     id: 'CLEAN_SHEET_HOME',
     name: 'Home Team Clean Sheet',
-    category: 'OTHER',
+    category: 'MATCH_RESULT',
     shortDesc: 'Will the home team concede 0 goals in 90 minutes?',
     icon: 'ShieldCheck',
     badge: 'Home Defense',
@@ -445,7 +551,7 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
   {
     id: 'CLEAN_SHEET_AWAY',
     name: 'Away Team Clean Sheet',
-    category: 'OTHER',
+    category: 'MATCH_RESULT',
     shortDesc: 'Will the away team concede 0 goals in 90 minutes?',
     icon: 'ShieldCheck',
     badge: 'Away Defense',
@@ -457,7 +563,7 @@ export const CLIENT_MARKETS: ClientMarketDefinition[] = [
   {
     id: 'WINNING_MARGIN',
     name: 'Winning Margin',
-    category: 'OTHER',
+    category: 'MATCH_RESULT',
     shortDesc: 'Difference in goals between the winning team and losing team.',
     icon: 'Scale',
     badge: 'Margin Odds',

@@ -1,5 +1,5 @@
 import { db, queryAll, queryOne, run } from '../db/database.js';
-import { getMarketDefinition } from './marketRegistry.js';
+import { getMarketDefinition, MatchEvaluationData } from './marketRegistry.js';
 
 export interface MatchResult {
   id: number;
@@ -33,12 +33,7 @@ export interface PredictionRow {
 export function evaluatePrediction(
   marketType: string,
   selection: string,
-  result: {
-    homeScore: number;
-    awayScore: number;
-    homeCorners: number;
-    awayCorners: number;
-  }
+  result: MatchEvaluationData
 ): { isCorrect: boolean; actualResultStr: string } {
   const def = getMarketDefinition(marketType);
   if (def) {
@@ -132,6 +127,7 @@ export function gradeMatch(matchId: number) {
         awayScore: match.away_score,
         homeCorners: match.home_corners ?? 10,
         awayCorners: match.away_corners ?? 0,
+        matchId: match.id,
       }
     );
 
