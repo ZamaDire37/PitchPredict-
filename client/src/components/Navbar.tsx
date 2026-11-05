@@ -185,14 +185,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              {/* Test Match Simulator button */}
-              <button
-                onClick={onOpenSimulator}
-                className="p-1.5 sm:p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-500/30 transition-colors"
-                title="Match Simulator & Test Grader"
-              >
-                <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
+              {/* Test Match Simulator button (Dev only - hidden in production) */}
+              {import.meta.env.DEV && (
+                <button
+                  onClick={onOpenSimulator}
+                  className="p-1.5 sm:p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-500/30 transition-colors"
+                  title="Match Simulator & Test Grader (Dev Mode Only)"
+                >
+                  <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
+              )}
 
               {/* Sync Live Matches */}
               <button
