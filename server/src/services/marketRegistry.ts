@@ -243,6 +243,53 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
     },
   },
   {
+    id: 'TOTAL_GOALS_RANGE',
+    name: 'Goal Range (Total Goals Bracket)',
+    category: 'GOALS',
+    categoryLabel: 'Goals',
+    shortDesc: 'Select the total combined goal range for the full 90 minutes.',
+    badge: 'Popular Ranges',
+    getOptions: () => [
+      { id: '0-1_GOALS', label: '0 - 1 Goals (0 or 1)', oddsPoints: 12, badge: 'Low' },
+      { id: '2-3_GOALS', label: '2 - 3 Goals (Normal Range)', oddsPoints: 8, badge: 'Top Pick' },
+      { id: '4-6_GOALS', label: '4 - 6 Goals (High Scoring)', oddsPoints: 16, badge: 'High' },
+      { id: '7+_GOALS', label: '7+ Goals (Goal Explosion)', oddsPoints: 35, badge: 'Mega Odds' },
+      { id: '1-2_GOALS', label: '1 - 2 Goals (Tight Match)', oddsPoints: 10 },
+      { id: '1-3_GOALS', label: '1 - 3 Goals (Conservative)', oddsPoints: 6 },
+      { id: '2-4_GOALS', label: '2 - 4 Goals (Balanced)', oddsPoints: 7, badge: 'Safe' },
+      { id: '3-4_GOALS', label: '3 - 4 Goals (Action Match)', oddsPoints: 12 },
+      { id: '3-5_GOALS', label: '3 - 5 Goals (Open Play)', oddsPoints: 10 },
+      { id: '4-5_GOALS', label: '4 - 5 Goals (Goal Fest)', oddsPoints: 16 },
+      { id: '6+_GOALS', label: '6+ Goals (Extreme Fest)', oddsPoints: 28, badge: 'High Reward' },
+    ],
+    evaluate: (selection, { homeScore, awayScore }) => {
+      const total = homeScore + awayScore;
+      let isCorrect = false;
+      if (selection === '0-1_GOALS') isCorrect = total <= 1;
+      else if (selection === '2-3_GOALS') isCorrect = total >= 2 && total <= 3;
+      else if (selection === '4-6_GOALS') isCorrect = total >= 4 && total <= 6;
+      else if (selection === '7+_GOALS') isCorrect = total >= 7;
+      else if (selection === '1-2_GOALS') isCorrect = total >= 1 && total <= 2;
+      else if (selection === '1-3_GOALS') isCorrect = total >= 1 && total <= 3;
+      else if (selection === '2-4_GOALS') isCorrect = total >= 2 && total <= 4;
+      else if (selection === '3-4_GOALS') isCorrect = total >= 3 && total <= 4;
+      else if (selection === '3-5_GOALS') isCorrect = total >= 3 && total <= 5;
+      else if (selection === '4-5_GOALS') isCorrect = total >= 4 && total <= 5;
+      else if (selection === '6+_GOALS') isCorrect = total >= 6;
+      return { isCorrect, actualResultStr: `${total} goals` };
+    },
+    defaultOdds: (sel) => {
+      if (sel === '7+_GOALS') return 35;
+      if (sel === '6+_GOALS') return 28;
+      if (sel === '4-5_GOALS' || sel === '4-6_GOALS') return 16;
+      if (sel === '0-1_GOALS' || sel === '3-4_GOALS') return 12;
+      if (sel === '1-2_GOALS' || sel === '3-5_GOALS') return 10;
+      if (sel === '2-3_GOALS') return 8;
+      if (sel === '2-4_GOALS') return 7;
+      return 6;
+    },
+  },
+  {
     id: 'HOME_TEAM_GOALS',
     name: 'Home Team Total Goals',
     category: 'GOALS',
@@ -323,30 +370,6 @@ export const MARKET_DEFINITIONS: MarketDefinition[] = [
       return { isCorrect, actualResultStr: `${total} Total Goals` };
     },
     defaultOdds: (sel) => (sel === '0_GOALS' ? 35 : sel === '5+_GOALS' ? 24 : sel === '4_GOALS' ? 18 : sel === '1_GOAL' ? 16 : 10),
-  },
-  {
-    id: 'TOTAL_GOALS_RANGE',
-    name: 'Total Goals Range',
-    category: 'GOALS',
-    categoryLabel: 'Goals',
-    shortDesc: 'Select the goal range for the full match.',
-    badge: '4 Goal Bands',
-    getOptions: () => [
-      { id: '0-1_GOALS', label: '0 - 1 Goals (Low Scoring)', oddsPoints: 12 },
-      { id: '2-3_GOALS', label: '2 - 3 Goals (Normal Range)', oddsPoints: 8, badge: 'Top Pick' },
-      { id: '4-5_GOALS', label: '4 - 5 Goals (High Scoring)', oddsPoints: 16 },
-      { id: '6+_GOALS', label: '6+ Goals (Extreme Fest)', oddsPoints: 28, badge: 'High Reward' },
-    ],
-    evaluate: (selection, { homeScore, awayScore }) => {
-      const total = homeScore + awayScore;
-      let isCorrect = false;
-      if (selection === '0-1_GOALS') isCorrect = total <= 1;
-      else if (selection === '2-3_GOALS') isCorrect = total >= 2 && total <= 3;
-      else if (selection === '4-5_GOALS') isCorrect = total >= 4 && total <= 5;
-      else if (selection === '6+_GOALS') isCorrect = total >= 6;
-      return { isCorrect, actualResultStr: `${total} goals` };
-    },
-    defaultOdds: (sel) => (sel === '6+_GOALS' ? 28 : sel === '4-5_GOALS' ? 16 : sel === '0-1_GOALS' ? 12 : 8),
   },
   {
     id: 'ODD_EVEN_GOALS',
