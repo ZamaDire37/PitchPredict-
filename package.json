@@ -11,7 +11,7 @@
     "build:client": "npm --prefix client run build",
     "build:server": "npm --prefix server run build",
     "build": "npm --prefix client install && npm --prefix server install && npm --prefix client run build && npm --prefix server run build",
-    "start": "node server/dist/index.js",
+    "start": "node --experimental-sqlite server/dist/index.js",
     "seed": "npm run seed --prefix server"
   },
   "devDependencies": {

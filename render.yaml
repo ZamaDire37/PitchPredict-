@@ -5,9 +5,9 @@ services:
     plan: free
     region: oregon
     buildCommand: npm run build
-    startCommand: npm start
+    startCommand: node --experimental-sqlite server/dist/index.js
     envVars:
       - key: NODE_VERSION
-        value: 22.12.0
+        value: 22.14.0
       - key: JWT_SECRET
         generateValue: true
