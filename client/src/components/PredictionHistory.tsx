@@ -41,14 +41,14 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
 
   // Sub-tab for My Predictions: BASIC vs SERIOUS
   const [mySubTab, setMySubTab] = useState<'BASIC' | 'SERIOUS'>(mode);
-  const [myStatusFilter, setMyStatusFilter] = useState<string>('DONE');
+  const [myStatusFilter, setMyStatusFilter] = useState<string>('ALL');
 
   // Filters for Community Predictions
   const [communityModeFilter, setCommunityModeFilter] = useState<'ALL' | 'BASIC' | 'SERIOUS'>('ALL');
   const [communityStatusFilter, setCommunityStatusFilter] = useState<string>('ALL');
 
   // Data states
-  const [basicPredictions, setBasicPredictions] = useState<Prediction[]>([]);
+  const [allBasicPredictions, setAllBasicPredictions] = useState<Prediction[]>([]);
   const [seriousSets, setSeriousSets] = useState<SeriousSet[]>([]);
   const [communityPredictions, setCommunityPredictions] = useState<CommunityPrediction[]>([]);
 
@@ -64,11 +64,11 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
     setLoading(true);
     try {
       if (mySubTab === 'BASIC') {
-        const res = await api.getMyPredictions('BASIC', myStatusFilter);
-        setBasicPredictions(res.predictions);
+        const res = await api.getMyPredictions('BASIC');
+        setAllBasicPredictions(res.predictions || []);
       } else {
         const res = await api.getMySeriousSets();
-        setSeriousSets(res.sets);
+        setSeriousSets(res.sets || []);
       }
     } catch (err) {
       console.error('Error fetching personal prediction history:', err);
@@ -112,13 +112,39 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
     }
   };
 
+  const basicPredictions = allBasicPredictions.filter((p) => {
+    if (myStatusFilter === 'DONE') return p.status === 'CORRECT' || p.status === 'INCORRECT';
+    if (myStatusFilter === 'CORRECT') return p.status === 'CORRECT';
+    if (myStatusFilter === 'INCORRECT') return p.status === 'INCORRECT';
+    if (myStatusFilter === 'PENDING') return p.status === 'PENDING';
+    return true; // ALL
+  });
+
   const displayedSets = seriousSets.filter((set) => {
     if (myStatusFilter === 'DONE') return set.status === 'WON' || set.status === 'LOST';
     if (myStatusFilter === 'CORRECT') return set.status === 'WON';
     if (myStatusFilter === 'INCORRECT') return set.status === 'LOST';
     if (myStatusFilter === 'PENDING') return set.status === 'PENDING';
-    return true;
+    return true; // ALL
   });
+
+  const basicCounts = {
+    all: allBasicPredictions.length,
+    pending: allBasicPredictions.filter((p) => p.status === 'PENDING').length,
+    done: allBasicPredictions.filter((p) => p.status === 'CORRECT' || p.status === 'INCORRECT').length,
+    won: allBasicPredictions.filter((p) => p.status === 'CORRECT').length,
+    lost: allBasicPredictions.filter((p) => p.status === 'INCORRECT').length,
+  };
+
+  const seriousCounts = {
+    all: seriousSets.length,
+    pending: seriousSets.filter((s) => s.status === 'PENDING').length,
+    done: seriousSets.filter((s) => s.status === 'WON' || s.status === 'LOST').length,
+    won: seriousSets.filter((s) => s.status === 'WON').length,
+    lost: seriousSets.filter((s) => s.status === 'LOST').length,
+  };
+
+  const activeCounts = mySubTab === 'BASIC' ? basicCounts : seriousCounts;
 
   return (
     <div className="space-y-6">
@@ -500,21 +526,33 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                 {/* Status Filter */}
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                   {[
-                    { id: 'DONE', label: 'Done (Completed)' },
-                    { id: 'CORRECT', label: 'Won' },
-                    { id: 'INCORRECT', label: 'Lost' },
-                    { id: 'PENDING', label: 'Active / Pending Picks' },
+                    { id: 'ALL', label: 'All Picks', count: activeCounts.all },
+                    { id: 'PENDING', label: 'Active / Pending', count: activeCounts.pending, badge: activeCounts.pending > 0 },
+                    { id: 'DONE', label: 'Done (Completed)', count: activeCounts.done },
+                    { id: 'CORRECT', label: 'Won', count: activeCounts.won },
+                    { id: 'INCORRECT', label: 'Lost', count: activeCounts.lost },
                   ].map((st) => (
                     <button
                       key={st.id}
                       onClick={() => setMyStatusFilter(st.id)}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                         myStatusFilter === st.id
                           ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
                           : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                       }`}
                     >
-                      {st.label}
+                      <span>{st.label}</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                          st.badge && myStatusFilter !== st.id
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : myStatusFilter === st.id
+                            ? 'bg-slate-700 text-white'
+                            : 'bg-slate-950 text-slate-500'
+                        }`}
+                      >
+                        {st.count}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -533,12 +571,23 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                       ))}
                     </div>
                   ) : basicPredictions.length === 0 ? (
-                    <div className="text-center py-16 px-4 bg-slate-900/30 border border-slate-800 rounded-3xl">
+                    <div className="text-center py-12 px-4 bg-slate-900/30 border border-slate-800 rounded-3xl">
                       <History className="w-10 h-10 text-slate-600 mx-auto mb-2" />
                       <h4 className="text-sm font-bold text-white mb-1">No Basic Predictions Found</h4>
-                      <p className="text-xs text-slate-400">
-                        You haven't placed any Basic Mode predictions matching this filter yet.
+                      <p className="text-xs text-slate-400 max-w-sm mx-auto mb-3">
+                        {myStatusFilter === 'DONE' && activeCounts.pending > 0
+                          ? `You have ${activeCounts.pending} active prediction waiting for its match to conclude!`
+                          : "You haven't placed any Basic Mode predictions matching this filter yet."}
                       </p>
+                      {activeCounts.pending > 0 && myStatusFilter !== 'PENDING' && (
+                        <button
+                          onClick={() => setMyStatusFilter('PENDING')}
+                          className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all inline-flex items-center gap-1.5"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>View Active / Pending Picks ({activeCounts.pending})</span>
+                        </button>
+                      )}
                     </div>
                   ) : (
                     basicPredictions.map((pred) => {
@@ -652,14 +701,25 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                       ))}
                     </div>
                   ) : displayedSets.length === 0 ? (
-                    <div className="text-center py-16 px-4 bg-slate-900/30 border border-slate-800 rounded-3xl">
+                    <div className="text-center py-12 px-4 bg-slate-900/30 border border-slate-800 rounded-3xl">
                       <Flame className="w-10 h-10 text-amber-500/50 mx-auto mb-2" />
                       <h4 className="text-sm font-bold text-white mb-1">No Sets Found</h4>
-                      <p className="text-xs text-slate-400">
-                        {myStatusFilter === 'DONE'
+                      <p className="text-xs text-slate-400 max-w-sm mx-auto mb-3">
+                        {myStatusFilter === 'DONE' && activeCounts.pending > 0
+                          ? `You have ${activeCounts.pending} active Serious Set(s) waiting for all matches in the set to conclude!`
+                          : myStatusFilter === 'DONE'
                           ? 'No completed Serious Mode sets yet. Sets appear here once all matches in the set conclude.'
                           : 'No Serious Mode sets match this filter.'}
                       </p>
+                      {activeCounts.pending > 0 && myStatusFilter !== 'PENDING' && (
+                        <button
+                          onClick={() => setMyStatusFilter('PENDING')}
+                          className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all inline-flex items-center gap-1.5"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>View Active / Pending Sets ({activeCounts.pending})</span>
+                        </button>
+                      )}
                     </div>
                   ) : (
                     displayedSets.map((set) => {
