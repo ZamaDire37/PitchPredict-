@@ -1,6 +1,11 @@
+import { Capacitor } from '@capacitor/core';
 import { Match, Prediction, SeriousSet, PointsHistoryEntry, User, CommunityPrediction, UserProfileData } from '../types';
 
-const API_BASE = '/api';
+export const LIVE_SERVER_URL = 'https://pitchpredict-fhx4.onrender.com';
+
+export const API_BASE = Capacitor.isNativePlatform()
+  ? `${LIVE_SERVER_URL}/api`
+  : (import.meta.env.VITE_API_URL || '/api');
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('fp_token');

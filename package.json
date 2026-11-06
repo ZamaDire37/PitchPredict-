@@ -12,9 +12,22 @@
     "build:server": "npm --prefix server run build",
     "build": "npm --prefix client install && npm --prefix server install && npm --prefix client run build && npm --prefix server run build",
     "start": "node --experimental-sqlite server/dist/index.js",
-    "seed": "npm run seed --prefix server"
+    "seed": "npm run seed --prefix server",
+    "mobile:build": "npm run build:client && npx cap sync",
+    "mobile:sync": "npx cap sync",
+    "mobile:android": "npx cap open android",
+    "mobile:ios": "npx cap open ios"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.0",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
   }
 }

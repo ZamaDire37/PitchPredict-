@@ -1,0 +1,21 @@
+{
+  "appId": "com.pitchpredict.app",
+  "appName": "PitchPredict",
+  "webDir": "client/dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#020617"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#020617",
+      "showSpinner": false
+    }
+  }
+}
