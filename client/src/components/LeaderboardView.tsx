@@ -134,11 +134,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
       )}
 
       {/* ================= HALL OF FAME SPOTLIGHT CARDS ================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="flex lg:grid lg:grid-cols-5 gap-2.5 sm:gap-3 overflow-x-auto no-scrollbar touch-pan-x -mx-3 px-3 sm:mx-0 sm:px-0">
         {/* Spotlight 1: Weekly Champion */}
         <div
           onClick={() => spotlights.topWeekly && setSelectedUserId(spotlights.topWeekly.id)}
-          className="p-3.5 rounded-2xl bg-gradient-to-br from-teal-950/40 via-slate-900 to-slate-950 border border-teal-500/40 hover:border-teal-300 cursor-pointer transition-all shadow-md group relative overflow-hidden"
+          className="shrink-0 w-[220px] sm:w-[240px] lg:w-auto p-3.5 rounded-2xl bg-gradient-to-br from-teal-950/40 via-slate-900 to-slate-950 border border-teal-500/40 hover:border-teal-300 cursor-pointer transition-all shadow-md group relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-wider font-extrabold text-teal-400 flex items-center gap-1">
@@ -168,7 +168,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
         {/* Spotlight 2: Points Titan (All-Time General) */}
         <div
           onClick={() => spotlights.topPoints && setSelectedUserId(spotlights.topPoints.id)}
-          className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border border-amber-500/30 hover:border-amber-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
+          className="shrink-0 w-[220px] sm:w-[240px] lg:w-auto p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border border-amber-500/30 hover:border-amber-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-400 flex items-center gap-1">
@@ -198,7 +198,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
         {/* Spotlight 3: Hottest Streak */}
         <div
           onClick={() => spotlights.hottestStreak && setSelectedUserId(spotlights.hottestStreak.id)}
-          className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-950/40 via-slate-900 to-slate-950 border border-rose-900/40 hover:border-rose-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
+          className="shrink-0 w-[220px] sm:w-[240px] lg:w-auto p-3.5 rounded-2xl bg-gradient-to-br from-rose-950/40 via-slate-900 to-slate-950 border border-rose-900/40 hover:border-rose-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-wider font-extrabold text-rose-400 flex items-center gap-1">
@@ -228,7 +228,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
         {/* Spotlight 4: All-Time Streak Record */}
         <div
           onClick={() => spotlights.bestStreakRecord && setSelectedUserId(spotlights.bestStreakRecord.id)}
-          className="p-3.5 rounded-2xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 hover:border-purple-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
+          className="shrink-0 w-[220px] sm:w-[240px] lg:w-auto p-3.5 rounded-2xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 hover:border-purple-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-wider font-extrabold text-purple-400 flex items-center gap-1">
@@ -258,15 +258,15 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
         {/* Spotlight 5: Accuracy Sniper */}
         <div
           onClick={() => spotlights.highestAccuracy && setSelectedUserId(spotlights.highestAccuracy.id)}
-          className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 hover:border-emerald-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
+          className="shrink-0 w-[220px] sm:w-[240px] lg:w-auto p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 hover:border-emerald-400 cursor-pointer transition-all shadow-md group relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400 flex items-center gap-1">
               <Target className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Top Accuracy</span>
+              <span>Accuracy Sniper</span>
             </span>
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-              Sniper
+              Precision
             </span>
           </div>
           <div className="text-sm font-black text-white truncate group-hover:text-emerald-300 transition-colors">
@@ -274,14 +274,10 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           </div>
           <div className="text-xl font-black text-emerald-400 font-mono mt-0.5">
             {spotlights.highestAccuracy ? spotlights.highestAccuracy.accuracy : 0}%{' '}
-            <span className="text-[10px] font-sans text-slate-400 font-normal">accuracy</span>
+            <span className="text-[10px] font-sans text-slate-400 font-normal">win rate</span>
           </div>
           <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
-            <span>
-              {activeMode === 'BASIC'
-                ? `${spotlights.highestAccuracy?.correct_count || 0} wins`
-                : `${spotlights.highestAccuracy?.won_sets || 0} sets won`}
-            </span>
+            <span>Picks: {spotlights.highestAccuracy?.total_predictions || 0}</span>
             <span className="text-cyan-400 group-hover:underline flex items-center gap-0.5">
               <span>View</span>
               <Eye className="w-2.5 h-2.5" />
@@ -380,11 +376,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
             </span>
           </div>
 
-          {/* Section Filter Pills */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          {/* Section Filter Pills (Horizontal swipe on mobile) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x flex-nowrap bg-slate-950 p-1 rounded-xl border border-slate-800 -mx-1 px-1">
             <button
               onClick={() => setActiveSection('weekly')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                 activeSection === 'weekly'
                   ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md shadow-teal-500/20 font-black'
                   : 'text-slate-400 hover:text-slate-200'
@@ -396,7 +392,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
 
             <button
               onClick={() => setActiveSection('points')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                 activeSection === 'points'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black'
                   : 'text-slate-400 hover:text-slate-200'
@@ -408,7 +404,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
 
             <button
               onClick={() => setActiveSection('streak')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                 activeSection === 'streak'
                   ? 'bg-rose-700 text-white shadow-md shadow-rose-950/40 font-black'
                   : 'text-slate-400 hover:text-slate-200'
@@ -420,7 +416,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
 
             <button
               onClick={() => setActiveSection('accuracy')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                 activeSection === 'accuracy'
                   ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black'
                   : 'text-slate-400 hover:text-slate-200'
@@ -432,7 +428,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
 
             <button
               onClick={() => setActiveSection('wins')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                 activeSection === 'wins'
                   ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 font-black'
                   : 'text-slate-400 hover:text-slate-200'
@@ -642,184 +638,188 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
 
             {/* ================= COMPREHENSIVE RANKINGS TABLE ================= */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-md">
-              <div className="px-5 py-3 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
-                <div className="flex items-center gap-6">
-                  <span className="w-8 text-center">Rank</span>
-                  <span>User</span>
-                </div>
-                <div className="flex items-center gap-4 sm:gap-8">
-                  {/* Streak Column Header */}
-                  <span
-                    className={`flex items-center gap-1 ${
-                      activeSection === 'streak' ? 'text-rose-400 font-black' : ''
-                    }`}
-                  >
-                    <Flame className="w-3.5 h-3.5" />
-                    <span>Streak</span>
-                  </span>
+              <div className="overflow-x-auto no-scrollbar touch-pan-x">
+                <div className="min-w-[500px] sm:min-w-0">
+                  <div className="px-4 sm:px-5 py-3 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    <div className="flex items-center gap-4 sm:gap-6">
+                      <span className="w-8 text-center">Rank</span>
+                      <span>User</span>
+                    </div>
+                    <div className="flex items-center gap-4 sm:gap-8">
+                      {/* Streak Column Header */}
+                      <span
+                        className={`flex items-center gap-1 ${
+                          activeSection === 'streak' ? 'text-rose-400 font-black' : ''
+                        }`}
+                      >
+                        <Flame className="w-3.5 h-3.5" />
+                        <span>Streak</span>
+                      </span>
 
-                  {/* Accuracy Column Header */}
-                  <span
-                    className={`hidden sm:flex items-center gap-1 ${
-                      activeSection === 'accuracy' ? 'text-emerald-400 font-black' : ''
-                    }`}
-                  >
-                    <Target className="w-3.5 h-3.5" />
-                    <span>Accuracy</span>
-                  </span>
+                      {/* Accuracy Column Header */}
+                      <span
+                        className={`hidden sm:flex items-center gap-1 ${
+                          activeSection === 'accuracy' ? 'text-emerald-400 font-black' : ''
+                        }`}
+                      >
+                        <Target className="w-3.5 h-3.5" />
+                        <span>Accuracy</span>
+                      </span>
 
-                  {/* Wins Column Header */}
-                  <span
-                    className={`hidden md:flex items-center gap-1 ${
-                      activeSection === 'wins' ? 'text-cyan-400 font-black' : ''
-                    }`}
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>{activeMode === 'BASIC' ? 'Correct' : 'Sets'}</span>
-                  </span>
+                      {/* Wins Column Header */}
+                      <span
+                        className={`hidden md:flex items-center gap-1 ${
+                          activeSection === 'wins' ? 'text-cyan-400 font-black' : ''
+                        }`}
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>{activeMode === 'BASIC' ? 'Correct' : 'Sets'}</span>
+                      </span>
 
-                  {/* Weekly Points Column */}
-                  <span
-                    className={`w-20 text-right ${
-                      activeSection === 'weekly' ? 'text-teal-400 font-black' : ''
-                    }`}
-                  >
-                    Weekly
-                  </span>
+                      {/* Weekly Points Column */}
+                      <span
+                        className={`w-20 text-right ${
+                          activeSection === 'weekly' ? 'text-teal-400 font-black' : ''
+                        }`}
+                      >
+                        Weekly
+                      </span>
 
-                  {/* Points (General) Column Header */}
-                  <span
-                    className={`w-20 text-right ${
-                      activeSection === 'points' ? 'text-amber-400 font-black' : ''
-                    }`}
-                  >
-                    General
-                  </span>
-                </div>
-              </div>
+                      {/* Points (General) Column Header */}
+                      <span
+                        className={`w-20 text-right ${
+                          activeSection === 'points' ? 'text-amber-400 font-black' : ''
+                        }`}
+                      >
+                        General
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="divide-y divide-slate-800/60">
-                {leaderboard.map((user) => {
-                  return (
-                    <div
-                      key={user.id}
-                      onClick={() => setSelectedUserId(user.id)}
-                      className="px-5 py-3.5 flex items-center justify-between text-xs hover:bg-slate-800/60 cursor-pointer transition-colors group"
-                    >
-                      <div className="flex items-center gap-4 sm:gap-6">
-                        <span
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
-                            user.rank === 1
-                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 font-black'
-                              : user.rank === 2
-                              ? 'bg-slate-400/20 text-slate-300 border border-slate-400/40 font-black'
-                              : user.rank === 3
-                              ? 'bg-amber-800/20 text-amber-600 border border-amber-800/40 font-black'
-                              : 'text-slate-400 bg-slate-950'
-                          }`}
-                        >
-                          {user.rank}
-                        </span>
-                        <div>
-                          <div className="font-bold text-white text-sm group-hover:text-amber-300 transition-colors flex items-center gap-2">
-                            <span>{user.username}</span>
-                            {user.is_on_fire && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded font-black bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-0.5">
-                                <Flame className="w-3 h-3 text-rose-400" />
-                                <span>{user.streak_tier}</span>
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-slate-400 sm:hidden">
-                            Streak: {user.streak} 🔥 • Accuracy: {user.accuracy}%
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 sm:gap-8">
-                        {/* Streak Badge */}
+                  <div className="divide-y divide-slate-800/60">
+                    {leaderboard.map((user) => {
+                      return (
                         <div
-                          className={`flex items-center gap-1.5 font-mono ${
-                            user.streak > 0
-                              ? 'text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded-lg border border-rose-900/40'
-                              : 'text-slate-400'
-                          }`}
+                          key={user.id}
+                          onClick={() => setSelectedUserId(user.id)}
+                          className="px-4 sm:px-5 py-3.5 flex items-center justify-between text-xs hover:bg-slate-800/60 cursor-pointer transition-colors group"
                         >
-                          <span>{user.streak} 🔥</span>
-                          <span className="text-[10px] text-slate-500 hidden sm:inline">
-                            (Pk: {user.best_streak})
-                          </span>
-                        </div>
-
-                        {/* Accuracy Percentage */}
-                        <div className="hidden sm:flex items-center gap-2 text-slate-300">
-                          <span
-                            className={`font-mono font-bold ${
-                              user.accuracy >= 75
-                                ? 'text-emerald-400'
-                                : user.accuracy >= 50
-                                ? 'text-cyan-400'
-                                : 'text-slate-400'
-                            }`}
-                          >
-                            {user.accuracy}%
-                          </span>
-                          <span className="text-[10px] text-slate-500">
-                            ({activeMode === 'BASIC' ? `${user.correct_count}/${user.total_graded}` : `${user.won_sets}/${user.total_sets}`})
-                          </span>
-                        </div>
-
-                        {/* Correct Picks / Sets */}
-                        <div className="hidden md:block text-slate-300 font-medium">
-                          {activeMode === 'BASIC' ? (
-                            <span className="text-emerald-400 font-bold">
-                              {user.correct_count} wins
-                            </span>
-                          ) : (
-                            <span>
-                              <strong className="text-emerald-400">{user.won_sets}W</strong> /{' '}
-                              <strong className="text-rose-400">{user.lost_sets}L</strong>
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Weekly Points */}
-                        <div className="w-20 text-right">
-                          <span className="font-mono font-black text-sm text-teal-400">
-                            +{user.weekly_points ?? 0}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block">this wk</span>
-                        </div>
-
-                        {/* General Points & Action Button */}
-                        <div className="text-right flex items-center gap-3">
-                          <div className="w-20">
+                          <div className="flex items-center gap-4 sm:gap-6">
                             <span
-                              className={`font-mono font-black text-sm ${
-                                activeMode === 'BASIC' ? 'text-emerald-400' : 'text-amber-400'
+                              className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                                user.rank === 1
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 font-black'
+                                  : user.rank === 2
+                                  ? 'bg-slate-400/20 text-slate-300 border border-slate-400/40 font-black'
+                                  : user.rank === 3
+                                  ? 'bg-amber-800/20 text-amber-600 border border-amber-800/40 font-black'
+                                  : 'text-slate-400 bg-slate-950'
                               }`}
                             >
-                              {user.points}
+                              {user.rank}
                             </span>
-                            <span className="text-[10px] text-slate-400 block">general</span>
+                            <div>
+                              <div className="font-bold text-white text-sm group-hover:text-amber-300 transition-colors flex items-center gap-2">
+                                <span>{user.username}</span>
+                                {user.is_on_fire && (
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded font-black bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-0.5">
+                                    <Flame className="w-3 h-3 text-rose-400" />
+                                    <span>{user.streak_tier}</span>
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-400 sm:hidden">
+                                Streak: {user.streak} 🔥 • Accuracy: {user.accuracy}%
+                              </div>
+                            </div>
                           </div>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedUserId(user.id);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors text-[11px] font-bold flex items-center gap-1 shrink-0"
-                            title={`View ${user.username}'s predictions`}
-                          >
-                            <Eye className="w-3.5 h-3.5 text-cyan-400" />
-                            <span className="hidden md:inline">Predictions</span>
-                          </button>
+                          <div className="flex items-center gap-4 sm:gap-8">
+                            {/* Streak Badge */}
+                            <div
+                              className={`flex items-center gap-1.5 font-mono ${
+                                user.streak > 0
+                                  ? 'text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded-lg border border-rose-900/40'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              <span>{user.streak} 🔥</span>
+                              <span className="text-[10px] text-slate-500 hidden sm:inline">
+                                (Pk: {user.best_streak})
+                              </span>
+                            </div>
+
+                            {/* Accuracy Percentage */}
+                            <div className="hidden sm:flex items-center gap-2 text-slate-300">
+                              <span
+                                className={`font-mono font-bold ${
+                                  user.accuracy >= 75
+                                    ? 'text-emerald-400'
+                                    : user.accuracy >= 50
+                                    ? 'text-cyan-400'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                {user.accuracy}%
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                ({activeMode === 'BASIC' ? `${user.correct_count}/${user.total_graded}` : `${user.won_sets}/${user.total_sets}`})
+                              </span>
+                            </div>
+
+                            {/* Correct Picks / Sets */}
+                            <div className="hidden md:block text-slate-300 font-medium">
+                              {activeMode === 'BASIC' ? (
+                                <span className="text-emerald-400 font-bold">
+                                  {user.correct_count} wins
+                                </span>
+                              ) : (
+                                <span>
+                                  <strong className="text-emerald-400">{user.won_sets}W</strong> /{' '}
+                                  <strong className="text-rose-400">{user.lost_sets}L</strong>
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Weekly Points */}
+                            <div className="w-20 text-right">
+                              <span className="font-mono font-black text-sm text-teal-400">
+                                +{user.weekly_points ?? 0}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block">this wk</span>
+                            </div>
+
+                            {/* General Points & Action Button */}
+                            <div className="text-right flex items-center gap-3">
+                              <div className="w-20">
+                                <span
+                                  className={`font-mono font-black text-sm ${
+                                    activeMode === 'BASIC' ? 'text-emerald-400' : 'text-amber-400'
+                                  }`}
+                                >
+                                  {user.points}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block">general</span>
+                              </div>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedUserId(user.id);
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors text-[11px] font-bold flex items-center gap-1 shrink-0"
+                                title={`View ${user.username}'s predictions`}
+                              >
+                                <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                                <span className="hidden md:inline">Predictions</span>
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           </>

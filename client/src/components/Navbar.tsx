@@ -18,6 +18,9 @@ import {
   Sparkles,
   Database,
   Globe,
+  Menu,
+  X,
+  ChevronRight,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -46,6 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { user, isAuthenticated, logout } = useAuth();
   const { mode, setMode, stagedPredictions } = useGameMode();
   const { timezoneLabel, timezoneAbbr } = useTimezone();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState<boolean>(false);
 
   return (
     <>
@@ -290,18 +294,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span><span className="hidden sm:inline">Official </span>Sign In</span>
                 </button>
               )}
+
+              {/* Mobile Menu & All Options Button (< md) */}
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="flex md:hidden p-1.5 sm:p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors select-none active:scale-95"
+                title="All Navigation & Tools Menu"
+                aria-label="Open Menu"
+              >
+                <Menu className="w-4 h-4 text-emerald-400" />
+              </button>
             </div>
           </div>
 
-          {/* Desktop Navigation Tabs Bar (Hidden on Mobile Phones) */}
+          {/* Top Navigation Tabs Bar (Scrollable on mobile phones & tablets, Responsive on desktop) */}
           <div
-            className={`hidden md:flex items-center space-x-1 sm:space-x-4 border-t py-2 overflow-x-auto no-scrollbar transition-colors ${
+            className={`flex items-center space-x-1.5 sm:space-x-2 border-t py-2 overflow-x-auto no-scrollbar touch-pan-x -mx-2 px-2 sm:mx-0 sm:px-0 transition-colors ${
               mode === 'SERIOUS' ? 'border-red-900/50' : 'border-slate-800/80'
             }`}
           >
             <button
               onClick={() => setActiveTab('matches')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
                 activeTab === 'matches'
                   ? mode === 'SERIOUS'
                     ? 'bg-red-950/70 text-amber-200 border border-red-500/40 shadow-sm'
@@ -309,13 +323,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
             >
-              <Calendar className={`w-4 h-4 ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-emerald-400'}`} />
+              <Calendar className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-emerald-400'}`} />
               <span>Fixtures & Matches</span>
             </button>
 
             <button
               onClick={() => setActiveTab('markets')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
                 activeTab === 'markets'
                   ? mode === 'SERIOUS'
                     ? 'bg-gradient-to-r from-amber-500/20 via-red-500/20 to-red-600/20 text-amber-300 border border-amber-500/50 font-black shadow-md shadow-red-950/30 ring-1 ring-amber-500/30'
@@ -323,13 +337,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
             >
-              <Layers className={`w-4 h-4 ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-emerald-400'}`} />
-              <span>{mode === 'SERIOUS' ? 'Serious Market Center' : 'Prediction Markets'}</span>
+              <Layers className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-emerald-400'}`} />
+              <span>{mode === 'SERIOUS' ? 'Serious Markets' : 'Prediction Markets'}</span>
             </button>
 
             <button
               onClick={() => setActiveTab('predictions')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
                 activeTab === 'predictions'
                   ? mode === 'SERIOUS'
                     ? 'bg-red-950/70 text-amber-200 border border-red-500/40 shadow-sm'
@@ -337,13 +351,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
             >
-              <History className={`w-4 h-4 ${mode === 'SERIOUS' ? 'text-red-400' : 'text-cyan-400'}`} />
+              <History className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${mode === 'SERIOUS' ? 'text-red-400' : 'text-cyan-400'}`} />
               <span>Past Predictions</span>
             </button>
 
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
                 activeTab === 'analytics'
                   ? mode === 'SERIOUS'
                     ? 'bg-red-950/70 text-amber-200 border border-red-500/40 shadow-sm'
@@ -351,13 +365,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
             >
-              <BarChart3 className={`w-4 h-4 ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-purple-400'}`} />
+              <BarChart3 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${mode === 'SERIOUS' ? 'text-amber-400' : 'text-purple-400'}`} />
               <span>Points Ledger & Charts</span>
             </button>
 
             <button
               onClick={() => setActiveTab('leaderboard')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
                 activeTab === 'leaderboard'
                   ? mode === 'SERIOUS'
                     ? 'bg-gradient-to-r from-amber-500/20 to-red-500/20 text-amber-300 border border-amber-500/40 font-black shadow-sm'
@@ -365,12 +379,237 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
               }`}
             >
-              <Trophy className="w-4 h-4 text-amber-400" />
+              <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
               <span>{mode === 'SERIOUS' ? 'Serious Leaderboard' : 'Leaderboards'}</span>
             </button>
+
+            {/* Rules & Guide Shortcut Pill */}
+            <button
+              onClick={onOpenRules}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors bg-slate-900/80 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 shrink-0 select-none active:scale-95"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Rules & Guide</span>
+            </button>
+
+            {/* Timezone Shortcut Pill */}
+            {onOpenTimezone && (
+              <button
+                onClick={onOpenTimezone}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors bg-slate-900/80 text-slate-300 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/40 shrink-0 select-none active:scale-95"
+              >
+                <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Timezone ({timezoneAbbr})</span>
+              </button>
+            )}
+
+            {/* Database Shortcut Pill */}
+            {onOpenDatabase && (
+              <button
+                onClick={onOpenDatabase}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors bg-slate-900/80 text-emerald-400 border border-emerald-500/30 shrink-0 select-none active:scale-95"
+              >
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Database</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
+
+      {/* Mobile Full Options Drawer / Bottom Sheet */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-950/85 backdrop-blur-md md:hidden">
+          <div className="bg-slate-900 border-t border-slate-800 rounded-t-3xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl pb-safe">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto my-2.5 shrink-0" />
+            <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/60 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="font-black text-sm text-white">All Options & Navigation</span>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white text-xs"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4 overflow-y-auto flex-1 text-xs">
+              {/* Section 1: Navigation Tabs */}
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Main Views</span>
+                <div className="grid grid-cols-1 gap-1.5 mt-2">
+                  {[
+                    { id: 'matches', label: 'Fixtures & Matches', icon: Calendar, color: 'text-emerald-400' },
+                    { id: 'markets', label: 'Prediction Markets Center', icon: Layers, color: 'text-amber-400' },
+                    { id: 'predictions', label: 'Past Predictions & Community Picks', icon: History, color: 'text-cyan-400' },
+                    { id: 'analytics', label: 'Points Ledger & Charts', icon: BarChart3, color: 'text-purple-400' },
+                    { id: 'leaderboard', label: 'Community Leaderboard & Rankings', icon: Trophy, color: 'text-amber-400' },
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setActiveTab(tab.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center justify-between p-3 rounded-xl border text-left font-bold transition-all ${
+                          isActive
+                            ? 'bg-slate-800 border-emerald-500/50 text-white shadow-sm'
+                            : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Icon className={`w-4 h-4 ${tab.color}`} />
+                          <span>{tab.label}</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-500" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Section 2: Utilities & Settings */}
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Game Tools & Settings</span>
+                <div className="grid grid-cols-1 gap-1.5 mt-2">
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenRules();
+                    }}
+                    className="flex items-center justify-between p-3 rounded-xl border bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/50 text-left font-bold transition-all"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div>
+                        <div>Official Game Guide & Scoring Architecture</div>
+                        <div className="text-[10px] text-slate-400 font-normal">Rules, 10 daily picks limit & points guide</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
+                  </button>
+
+                  {onOpenTimezone && (
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenTimezone();
+                      }}
+                      className="flex items-center justify-between p-3 rounded-xl border bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/50 text-left font-bold transition-all"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Globe className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <div>
+                          <div>Timezone Settings</div>
+                          <div className="text-[10px] text-cyan-300 font-normal">Current: {timezoneLabel} ({timezoneAbbr})</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
+                    </button>
+                  )}
+
+                  {onOpenDatabase && (
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenDatabase();
+                      }}
+                      className="flex items-center justify-between p-3 rounded-xl border bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/50 text-left font-bold transition-all"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Database className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <div>
+                          <div>Database & Supabase Cloud Center</div>
+                          <div className="text-[10px] text-emerald-400 font-normal">PostgreSQL Cloud Architecture Status</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onSyncApi();
+                    }}
+                    disabled={isSyncing}
+                    className="flex items-center justify-between p-3 rounded-xl border bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/50 text-left font-bold transition-all"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <RefreshCw className={`w-4 h-4 text-cyan-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                      <div>
+                        <div>Sync Real Football APIs</div>
+                        <div className="text-[10px] text-slate-400 font-normal">Refresh Europa League, EPL & Champions League feeds</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
+                  </button>
+
+                  {import.meta.env.DEV && onOpenSimulator && (
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenSimulator();
+                      }}
+                      className="flex items-center justify-between p-3 rounded-xl border bg-slate-950/60 border-slate-800/80 text-amber-300 hover:bg-slate-800/50 text-left font-bold transition-all"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Sliders className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div>
+                          <div>Match Simulator & Grader (Dev Mode)</div>
+                          <div className="text-[10px] text-slate-400 font-normal">Simulate full-time results and auto-grade</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 3: User Auth / Profile */}
+              <div className="pt-2 border-t border-slate-800">
+                {isAuthenticated ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                      <div>
+                        <span className="font-bold text-white text-sm">{user?.username}</span>
+                        <div className="text-[10px] text-slate-400">
+                          Basic: {user?.basic_points} pts • Serious: {user?.serious_points} pts
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        logout();
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-red-950/50 hover:bg-red-900/60 text-red-300 border border-red-800/50 text-xs font-bold transition-colors"
+                    >
+                      Log Out
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenAuth();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Sign In / Create Account</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Bottom Navigation Bar (FotMob/ESPN style with Safe Area support) */}
       <nav
