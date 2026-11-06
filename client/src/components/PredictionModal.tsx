@@ -161,10 +161,13 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-6">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-hidden">
+      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[88vh] flex flex-col pb-safe">
+        {/* Mobile Drag Handle Indicator */}
+        <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-950/60">
+        <div className="shrink-0 flex items-center justify-between p-3.5 sm:p-5 border-b border-slate-800 bg-slate-950/70">
           <div className="flex items-center gap-2">
             <span
               className={`flex items-center justify-center w-8 h-8 rounded-xl font-bold ${
@@ -176,10 +179,10 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
               {mode === 'BASIC' ? <Shield className="w-4 h-4" /> : <Flame className="w-4 h-4 text-rose-400" />}
             </span>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-white">
+              <h2 className="text-sm sm:text-lg font-black text-white">
                 Place Prediction ({mode === 'BASIC' ? 'Basic Mode' : 'Serious Mode'})
               </h2>
-              <p className="text-xs text-slate-400">{match.competition_name}</p>
+              <p className="text-[11px] sm:text-xs text-slate-400">{match.competition_name}</p>
             </div>
           </div>
           <button
@@ -191,38 +194,38 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
         </div>
 
         {/* Match Overview Bar */}
-        <div className="p-4 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm font-bold text-white">
+        <div className="shrink-0 p-3 sm:p-4 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white">
             {match.home_team_crest && (
-              <img src={match.home_team_crest} alt="" className="w-6 h-6 object-contain" />
+              <img src={match.home_team_crest} alt="" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
             )}
-            <span>{homeName}</span>
+            <span className="truncate max-w-[120px] sm:max-w-none">{homeName}</span>
           </div>
 
           <div className="text-center">
             <span className="text-xs font-black text-slate-500">VS</span>
-            <div className="text-[11px] text-slate-400">
+            <div className="text-[10px] sm:text-[11px] text-slate-400">
               {kickoffDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-sm font-bold text-white">
-            <span>{awayName}</span>
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white">
+            <span className="truncate max-w-[120px] sm:max-w-none">{awayName}</span>
             {match.away_team_crest && (
-              <img src={match.away_team_crest} alt="" className="w-6 h-6 object-contain" />
+              <img src={match.away_team_crest} alt="" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
             )}
           </div>
         </div>
 
         {/* ================= PREDICTION CATEGORY TABS ================= */}
-        <div className="px-4 sm:px-6 pt-3 pb-2 border-b border-slate-800/80 bg-slate-950/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        <div className="shrink-0 px-3 sm:px-6 pt-2.5 pb-2 border-b border-slate-800/80 bg-slate-950/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x">
           {CATEGORIES.map((cat) => {
             const isActive = activeCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border shrink-0 ${
                   isActive
                     ? mode === 'SERIOUS'
                       ? 'bg-rose-950/60 text-rose-200 border-rose-700/70 shadow-sm'
@@ -238,7 +241,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
         </div>
 
         {/* Main Body */}
-        <div className="p-4 sm:p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-6 space-y-4 sm:space-y-6">
           {/* Guest User Callout */}
           {!isAuthenticated && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-xs shadow-inner">
@@ -373,10 +376,10 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 sm:p-5 border-t border-slate-800 bg-slate-950/80 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-slate-300">
+        <div className="shrink-0 p-3 sm:p-5 border-t border-slate-800 bg-slate-950/95 sticky bottom-0 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs text-slate-300 w-full sm:w-auto text-center sm:text-left">
             {selectedSelection ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
                 <span className="text-slate-400">Selected:</span>
                 <span className="px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-bold font-mono">
                   {selectedMarket} ({selectedSelection})
@@ -386,14 +389,14 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
                 </span>
               </div>
             ) : (
-              <span className="text-slate-500">Tap any option above to select. Tap again to deselect.</span>
+              <span className="text-slate-500 text-[11px] sm:text-xs">Tap an option to select. Tap again to deselect.</span>
             )}
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={onClose}
-              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors min-h-[44px] sm:min-h-[38px] active:scale-95"
             >
               Cancel
             </button>
@@ -402,7 +405,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
               <button
                 type="button"
                 onClick={onOpenAuth}
-                className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95"
+                className="flex-1 sm:flex-none px-6 py-2.5 sm:py-2 rounded-xl text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95 min-h-[44px] sm:min-h-[38px]"
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Sign In to Place Prediction</span>
@@ -411,7 +414,7 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
               <button
                 onClick={handleSubmit}
                 disabled={!selectedSelection || submitting || isStarted}
-                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-1.5 ${
+                className={`flex-1 sm:flex-none px-6 py-2.5 sm:py-2 rounded-xl text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[38px] active:scale-95 ${
                   !selectedSelection || isStarted
                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
                     : mode === 'BASIC'

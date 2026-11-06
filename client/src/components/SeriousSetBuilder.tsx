@@ -85,7 +85,7 @@ export const SeriousSetBuilder: React.FC<SeriousSetBuilderProps> = ({ onSuccess,
   };
 
   return (
-    <div className="fixed bottom-16 sm:bottom-4 left-2 right-2 sm:left-auto sm:right-4 z-40 w-auto sm:w-full max-w-none sm:max-w-md bg-slate-950/95 border border-rose-900/50 rounded-2xl shadow-xl shadow-rose-950/40 overflow-hidden backdrop-blur-xl transition-all duration-300">
+    <div className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-4 left-2 right-2 sm:left-auto sm:right-4 z-50 w-auto sm:w-full max-w-none sm:max-w-md bg-slate-950/95 border border-rose-900/50 rounded-2xl shadow-2xl shadow-rose-950/60 overflow-hidden backdrop-blur-xl transition-all duration-300">
       {/* Header */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}

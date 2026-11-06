@@ -114,7 +114,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
                 size="md"
               />
             </div>
-            <span className="font-bold text-slate-100 text-xs sm:text-sm line-clamp-1">
+            <span className="font-bold text-slate-100 text-xs sm:text-sm line-clamp-2 min-h-[28px] sm:min-h-[34px] leading-tight text-center break-words">
               {match.home_team_short || match.home_team_name}
             </span>
             <span className="text-[10px] text-slate-400 hidden sm:block">Home</span>
@@ -170,7 +170,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
                 size="md"
               />
             </div>
-            <span className="font-bold text-slate-100 text-xs sm:text-sm line-clamp-1">
+            <span className="font-bold text-slate-100 text-xs sm:text-sm line-clamp-2 min-h-[28px] sm:min-h-[34px] leading-tight text-center break-words">
               {match.away_team_short || match.away_team_name}
             </span>
             <span className="text-[10px] text-slate-400 hidden sm:block">Away</span>
@@ -228,7 +228,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
                   e.stopPropagation();
                   onSelectMatch(match);
                 }}
-                className={`w-full xs:w-auto flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2.5 sm:py-1.5 rounded-xl transition-all shadow-md min-h-[42px] sm:min-h-0 ${
+                className={`w-full xs:w-auto flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2.5 sm:py-2 rounded-xl transition-all shadow-md min-h-[44px] sm:min-h-[38px] select-none touch-manipulation ${
                   mode === 'BASIC'
                     ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20 active:scale-95'
                     : 'bg-rose-700 hover:bg-rose-600 text-white shadow-md shadow-rose-950/40 active:scale-95'

@@ -129,6 +129,40 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* User Points Balances & Actions */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              {/* Mobile Active Points Pill (< xl) */}
+              {isAuthenticated && user && (
+                <div
+                  className={`flex xl:hidden items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-bold ${
+                    mode === 'BASIC'
+                      ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300'
+                      : 'bg-rose-950/70 border-rose-800/50 text-rose-300'
+                  }`}
+                  title={`${mode === 'BASIC' ? 'Basic' : 'Serious'} Points`}
+                >
+                  {mode === 'BASIC' ? (
+                    <>
+                      <Shield className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span>{user.basic_points}</span>
+                      <span className="text-[9px] text-slate-400 font-mono">
+                        ({(user.basic_daily_count ?? user.basic_pending_count ?? 0)}/10)
+                      </span>
+                      {user.basic_streak > 0 && (
+                        <span className="text-[10px] text-emerald-400">🔥{user.basic_streak}</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Flame className="w-3 h-3 text-rose-400 shrink-0" />
+                      <span>{user.serious_points}</span>
+                      {user.serious_streak > 0 && (
+                        <span className="text-[10px] text-rose-400">⚡{user.serious_streak}</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Desktop Points Balances (>= xl) */}
               {isAuthenticated && user && (
                 <div className="hidden xl:flex items-center gap-2">
                   {/* Basic Points Pill */}
@@ -172,11 +206,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
 
-              {/* Database & Supabase Cloud Status */}
+              {/* Database & Supabase Cloud Status (Desktop only to save mobile header space) */}
               {onOpenDatabase && (
                 <button
                   onClick={onOpenDatabase}
-                  className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-emerald-500/30 transition-colors text-xs font-semibold"
+                  className="hidden sm:flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-emerald-500/30 transition-colors text-xs font-semibold"
                   title="Supabase Cloud Database & Schema Center"
                 >
                   <Database className="w-3.5 h-3.5 text-emerald-400" />
@@ -189,7 +223,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {import.meta.env.DEV && (
                 <button
                   onClick={onOpenSimulator}
-                  className="p-1.5 sm:p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-500/30 transition-colors"
+                  className="hidden sm:flex p-1.5 sm:p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-500/30 transition-colors"
                   title="Match Simulator & Test Grader (Dev Mode Only)"
                 >
                   <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -208,15 +242,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
-              {/* Timezone Selector Button */}
+              {/* Timezone Selector Button (Hidden on small mobile to avoid header clutter) */}
               {onOpenTimezone && (
                 <button
                   onClick={onOpenTimezone}
-                  className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/40 transition-colors"
+                  className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/40 transition-colors"
                   title={`Active Timezone: ${timezoneLabel} (Click to change)`}
                 >
                   <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="hidden sm:inline font-mono font-bold text-[11px] text-cyan-200">
+                  <span className="font-mono font-bold text-[11px] text-cyan-200">
                     {timezoneAbbr || 'TZ'}
                   </span>
                 </button>
@@ -225,7 +259,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Info / Rules */}
               <button
                 onClick={onOpenRules}
-                className="p-1.5 sm:p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors"
+                className="hidden xs:flex p-1.5 sm:p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors"
                 title="Game Rules & Mechanics"
               >
                 <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -351,7 +385,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* 1. Fixtures */}
           <button
             onClick={() => setActiveTab('matches')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+            className={`flex flex-col items-center justify-center py-1 transition-all relative select-none touch-manipulation active:scale-95 ${
               activeTab === 'matches'
                 ? mode === 'SERIOUS'
                   ? 'text-amber-300 font-bold'
@@ -369,7 +403,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* 2. Markets */}
           <button
             onClick={() => setActiveTab('markets')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+            className={`flex flex-col items-center justify-center py-1 transition-all relative select-none touch-manipulation active:scale-95 ${
               activeTab === 'markets'
                 ? mode === 'SERIOUS'
                   ? 'text-amber-300 font-bold'
@@ -394,7 +428,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* 3. Past Predictions */}
           <button
             onClick={() => setActiveTab('predictions')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+            className={`flex flex-col items-center justify-center py-1 transition-all relative select-none touch-manipulation active:scale-95 ${
               activeTab === 'predictions'
                 ? mode === 'SERIOUS'
                   ? 'text-amber-300 font-bold'
@@ -412,7 +446,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* 4. Points Ledger & Analytics */}
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+            className={`flex flex-col items-center justify-center py-1 transition-all relative select-none touch-manipulation active:scale-95 ${
               activeTab === 'analytics'
                 ? mode === 'SERIOUS'
                   ? 'text-amber-300 font-bold'
@@ -430,7 +464,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* 5. Leaderboard */}
           <button
             onClick={() => setActiveTab('leaderboard')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+            className={`flex flex-col items-center justify-center py-1 transition-all relative select-none touch-manipulation active:scale-95 ${
               activeTab === 'leaderboard'
                 ? 'text-amber-300 font-bold'
                 : 'text-slate-400 hover:text-slate-200'

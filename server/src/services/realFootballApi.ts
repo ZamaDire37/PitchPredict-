@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { queryAll, queryOne, run } from '../db/database.js';
 import { gradeMatch } from './scoringEngine.js';
+import { REAL_EUROPA_LEAGUE_FIXTURES } from './realEuropaFixtures.js';
 import { resolveTeamInfo } from './teamCrestRegistry.js';
 
 export interface ValidatedMatch {
@@ -275,6 +276,12 @@ export class RealFootballApiService {
       } catch (err: any) {
         // Continue quietly
       }
+    }
+
+    // Ensure Europa League fixtures are ALWAYS available even if Cloudflare blocks or rate-limits Render
+    const elMatches = results.filter((m) => m.competitionId === 'EL');
+    if (elMatches.length < 5) {
+      results.push(...REAL_EUROPA_LEAGUE_FIXTURES);
     }
 
     return { matches: results, error: lastError };

@@ -1,6 +1,7 @@
-import { queryAll, run } from './database.js';
+import { queryAll, queryOne, run } from './database.js';
 import { resolveTeamInfo, COMPETITION_EMBLEMS } from '../services/teamCrestRegistry.js';
 import { FootballApiService } from '../services/footballApi.js';
+import { REAL_EUROPA_LEAGUE_FIXTURES } from '../services/realEuropaFixtures.js';
 
 export function enrichAllMatchesInDatabase(): { updatedCount: number; cleanedTestCount: number } {
   // 1. Delete dummy test matches inserted by unit tests (e.g. Team 1A, Team 2A, Test Team A)
@@ -26,6 +27,38 @@ export function enrichAllMatchesInDatabase(): { updatedCount: number; cleanedTes
     SET data_source = 'OpenLigaDB Live REST API'
     WHERE data_source IS NULL AND external_id >= 900000 AND external_id < 1000000
   `);
+
+  // 1d. Ensure Europa League fixtures are always present upon startup
+  try {
+    const elCount = queryOne<{ count: number }>("SELECT count(*) as count FROM matches WHERE competition_id = 'EL'");
+    if (!elCount || elCount.count < 5) {
+      for (const m of REAL_EUROPA_LEAGUE_FIXTURES) {
+        run(`
+          INSERT INTO matches (
+            external_id, competition_id, competition_name, competition_emblem,
+            utc_date, status, matchday,
+            home_team_name, home_team_short, home_team_crest,
+            away_team_name, away_team_short, away_team_crest,
+            home_score, away_score, home_corners, away_corners, winner, is_graded, data_source
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+          ON CONFLICT(external_id) DO UPDATE SET
+            utc_date = excluded.utc_date,
+            status = excluded.status,
+            home_score = COALESCE(matches.home_score, excluded.home_score),
+            away_score = COALESCE(matches.away_score, excluded.away_score),
+            data_source = COALESCE(matches.data_source, excluded.data_source)
+        `, [
+          m.externalId, m.competitionId, m.competitionName, m.competitionEmblem,
+          m.utcDate, m.status, m.matchday,
+          m.homeTeamName, m.homeTeamShort, m.homeTeamCrest,
+          m.awayTeamName, m.awayTeamShort, m.awayTeamCrest,
+          m.homeScore, m.awayScore, m.homeCorners, m.awayCorners, m.winner, m.dataSource
+        ]);
+      }
+    }
+  } catch (err) {
+    console.warn('Europa League seed warning:', err);
+  }
 
   const cleanedTestCount = deleteResult.changes;
 

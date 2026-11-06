@@ -283,8 +283,21 @@ export const MatchList: React.FC<MatchListProps> = ({
           </div>
         )}
 
-        {/* Live Provider Breakdown Badges */}
-        <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-2 text-[11px]">
+        {/* Mobile Compact Provider Status (< sm) */}
+        <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex sm:hidden items-center justify-between text-[11px]">
+          <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            Verified Real Matches
+          </span>
+          {diagnostics?.totalMatchesInDb > 0 && (
+            <span className="font-mono text-slate-300 text-[10px]">
+              {diagnostics.totalMatchesInDb} Fixtures
+            </span>
+          )}
+        </div>
+
+        {/* Live Provider Breakdown Badges (>= sm) */}
+        <div className="mt-3 pt-3 border-t border-slate-800/80 hidden sm:flex flex-wrap items-center gap-2 text-[11px]">
           <span className="text-slate-400 font-semibold flex items-center gap-1">
             <Database className="w-3.5 h-3.5 text-slate-500" />
             Active Live API Feeds:
