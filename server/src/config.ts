@@ -35,5 +35,9 @@ export const config = {
     { id: 'BL1', name: 'Bundesliga', emblem: 'https://crests.football-data.org/BL1.png' },
     { id: 'SA', name: 'Serie A', emblem: 'https://crests.football-data.org/SA.png' },
     { id: 'FL1', name: 'Ligue 1', emblem: 'https://crests.football-data.org/FL1.png' },
+    { id: 'PPL', name: 'Primeira Liga', emblem: 'https://crests.football-data.org/PPL.png' },
+    { id: 'BEL', name: 'Belgian Pro League', emblem: 'https://crests.football-data.org/BEL.png' },
+    { id: 'DED', name: 'Eredivisie', emblem: 'https://crests.football-data.org/DED.png' },
+    { id: 'EL', name: 'UEFA Europa League', emblem: 'https://crests.football-data.org/EL.png' },
   ],
 };

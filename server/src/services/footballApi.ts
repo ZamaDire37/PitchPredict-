@@ -10,7 +10,7 @@ import { gradeMatch } from './scoringEngine.js';
 let runtimeFootballApiKey: string = '';
 
 export class FootballApiService {
-  private static getApiKey(): string {
+  public static getApiKey(): string {
     return runtimeFootballApiKey || process.env.FOOTBALL_DATA_API_KEY || config.footballDataApiKey || '';
   }
 

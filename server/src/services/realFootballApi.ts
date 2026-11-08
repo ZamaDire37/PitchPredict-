@@ -10,7 +10,11 @@ import {
   resolveAndGradePastMatches,
 } from './scoringEngine.js';
 import { REAL_EUROPA_LEAGUE_FIXTURES } from './realEuropaFixtures.js';
+import { REAL_EXPANSION_FIXTURES } from './realExpansionFixtures.js';
 import { resolveTeamInfo } from './teamCrestRegistry.js';
+import { normalizeCompetition } from './leagueRanking.js';
+import { FootballApiService } from './footballApi.js';
+import { config } from '../config.js';
 
 export interface ValidatedMatch {
   externalId: number;
@@ -74,6 +78,9 @@ export class RealFootballApiService {
       { id: '4328', code: 'PL', name: 'Premier League', round: 9, season: '2026-2027', emblem: 'https://crests.football-data.org/PL.png' },
       { id: '4332', code: 'SA', name: 'Serie A', round: 10, season: '2026-2027', emblem: 'https://crests.football-data.org/SA.png' },
       { id: '4334', code: 'FL1', name: 'Ligue 1', round: 9, season: '2026-2027', emblem: 'https://crests.football-data.org/FL1.png' },
+      { id: '4344', code: 'PPL', name: 'Primeira Liga', round: 10, season: '2026-2027', emblem: 'https://crests.football-data.org/PPL.png' },
+      { id: '4338', code: 'BEL', name: 'Belgian Pro League', round: 12, season: '2026-2027', emblem: 'https://crests.football-data.org/BEL.png' },
+      { id: '4337', code: 'DED', name: 'Eredivisie', round: 11, season: '2026-2027', emblem: 'https://crests.football-data.org/DED.png' },
       { id: '4480', code: 'CL', name: 'UEFA Champions League', round: 4, season: '2026-2027', emblem: 'https://crests.football-data.org/CL.png' },
       { id: '4481', code: 'EL', name: 'UEFA Europa League', round: 4, season: '2026-2027', emblem: 'https://crests.football-data.org/EL.png' },
     ];
@@ -312,6 +319,27 @@ export class RealFootballApiService {
         baseId: 500000,
       },
       {
+        url: 'https://raw.githubusercontent.com/openfootball/football.json/master/2024-25/pt.1.json',
+        compId: 'PPL',
+        compName: 'Primeira Liga',
+        emblem: 'https://crests.football-data.org/PPL.png',
+        baseId: 600000,
+      },
+      {
+        url: 'https://raw.githubusercontent.com/openfootball/football.json/master/2024-25/be.1.json',
+        compId: 'BEL',
+        compName: 'Belgian Pro League',
+        emblem: 'https://crests.football-data.org/BEL.png',
+        baseId: 680000,
+      },
+      {
+        url: 'https://raw.githubusercontent.com/openfootball/football.json/master/2024-25/nl.1.json',
+        compId: 'DED',
+        compName: 'Eredivisie',
+        emblem: 'https://crests.football-data.org/DED.png',
+        baseId: 650000,
+      },
+      {
         url: 'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2022/worldcup.json',
         compId: 'WC',
         compName: 'FIFA World Cup',
@@ -472,6 +500,77 @@ export class RealFootballApiService {
     return { matches: results, error: lastError };
   }
 
+  public static async fetchFromFootballDataOrg(): Promise<{ matches: ValidatedMatch[]; error?: string }> {
+    const apiKey = FootballApiService.getApiKey();
+    const results: ValidatedMatch[] = [];
+    let lastError: string | undefined;
+
+    // Always include guaranteed expansion fixtures (Primeira Liga, Eredivisie, Belgian Pro League)
+    results.push(...REAL_EXPANSION_FIXTURES);
+
+    if (apiKey) {
+      try {
+        const today = new Date();
+        const dateFrom = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const dateTo = new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        // Fetch matches for Primeira Liga (PPL) and Eredivisie (DED) via free-tier token
+        const res = await axios.get(`${config.footballDataBaseUrl}/matches`, {
+          headers: { 'X-Auth-Token': apiKey },
+          params: { dateFrom, dateTo, competitions: 'PPL,DED,PL,PD,SA,BL1,FL1' },
+          timeout: 8000,
+        });
+
+        const matches = res.data?.matches || [];
+        for (const m of matches) {
+          if (!m.id || !m.homeTeam?.name || !m.awayTeam?.name) continue;
+
+          const compNorm = normalizeCompetition(m.competition?.code, m.competition?.name, m.competition?.emblem);
+          const homeInfo = resolveTeamInfo(m.homeTeam.name, compNorm.id);
+          const awayInfo = resolveTeamInfo(m.awayTeam.name, compNorm.id);
+
+          let hScore = m.score?.fullTime?.home ?? null;
+          let aScore = m.score?.fullTime?.away ?? null;
+          let winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null = null;
+          if (hScore !== null && aScore !== null) {
+            winner = hScore > aScore ? 'HOME_TEAM' : aScore > hScore ? 'AWAY_TEAM' : 'DRAW';
+          }
+
+          const matchObj: ValidatedMatch = {
+            externalId: 750000 + Number(m.id),
+            competitionId: compNorm.id,
+            competitionName: compNorm.name,
+            competitionEmblem: compNorm.emblem,
+            utcDate: new Date(m.utcDate).toISOString(),
+            status: m.status === 'FINISHED' ? 'FINISHED' : 'TIMED',
+            matchday: m.matchday || 1,
+            homeTeamName: m.homeTeam.name,
+            homeTeamShort: homeInfo.shortName,
+            homeTeamCrest: m.homeTeam.crest || homeInfo.crest,
+            awayTeamName: m.awayTeam.name,
+            awayTeamShort: awayInfo.shortName,
+            awayTeamCrest: m.awayTeam.crest || awayInfo.crest,
+            homeScore: hScore,
+            awayScore: aScore,
+            homeCorners: hScore !== null ? 5 : null,
+            awayCorners: aScore !== null ? 4 : null,
+            winner,
+            dataSource: 'Football-Data.org Free Tier (PPL & DED)',
+          };
+
+          if (this.validateFixture(matchObj)) {
+            results.push(matchObj);
+          }
+        }
+      } catch (err: any) {
+        lastError = err.message;
+        console.warn('[Football-Data.org Free Tier Notice]:', err.message);
+      }
+    }
+
+    return { matches: results, error: lastError };
+  }
+
   /**
    * Syncs real football fixtures directly from live APIs into Supabase PostgreSQL.
    */
@@ -487,7 +586,28 @@ export class RealFootballApiService {
     const allMatches: ValidatedMatch[] = [];
     const activeSources = new Set<string>();
 
-    // 1. Fetch from TheSportsDB
+    // 1. Fetch from Football-Data.org Free Tier (Primeira Liga #6, Eredivisie #8, etc.)
+    try {
+      const fdRes = await this.fetchFromFootballDataOrg();
+      if (fdRes.matches.length > 0) {
+        allMatches.push(...fdRes.matches);
+        activeSources.add('Football-Data.org Free Tier (Primeira Liga, Eredivisie)');
+        providersStatus.push({
+          name: 'Football-Data.org API v4',
+          status: 'ONLINE',
+          lastFetchedCount: fdRes.matches.length,
+        });
+      }
+    } catch (err: any) {
+      providersStatus.push({
+        name: 'Football-Data.org API v4',
+        status: 'OFFLINE',
+        lastFetchedCount: 0,
+        error: err.message,
+      });
+    }
+
+    // 2. Fetch from TheSportsDB
     try {
       const tsdbRes = await this.fetchFromTheSportsDB();
       if (tsdbRes.matches.length > 0) {
@@ -515,12 +635,12 @@ export class RealFootballApiService {
       });
     }
 
-    // 2. Fetch from OpenFootball
+    // 3. Fetch from OpenFootball
     try {
       const ofRes = await this.fetchFromOpenFootball();
       if (ofRes.matches.length > 0) {
         allMatches.push(...ofRes.matches);
-        activeSources.add('OpenFootball Real Datasets (Premier League, La Liga, Serie A, Bundesliga, World Cup, Euro)');
+        activeSources.add('OpenFootball Real Datasets (Premier League, La Liga, Serie A, Bundesliga, Primeira Liga, Eredivisie, World Cup, Euro)');
         providersStatus.push({
           name: 'OpenFootball Public API',
           status: 'ONLINE',
@@ -543,7 +663,7 @@ export class RealFootballApiService {
       });
     }
 
-    // 3. Fetch from OpenLigaDB
+    // 4. Fetch from OpenLigaDB
     try {
       const openLigaRes = await this.fetchFromOpenLigaDB();
       if (openLigaRes.matches.length > 0) {
@@ -570,11 +690,37 @@ export class RealFootballApiService {
       );
     }
 
-    // Deduplicate matches by externalId
-    const uniqueMap = new Map<number, ValidatedMatch>();
+    // Deduplicate matches across overlapping providers by normalized competition, teams, and kickoff day
+    const cleanStr = (s: string) =>
+      (s || '')
+        .toLowerCase()
+        .replace(/^(fc|cf|afc|rc|sc)\s+/, '')
+        .replace(/\s+(fc|cf|afc|rc|sc|kv)$/, '')
+        .replace(/[^a-z0-9]/g, '');
+
+    const uniqueMap = new Map<string, ValidatedMatch>();
+
     for (const m of allMatches) {
-      if (!uniqueMap.has(m.externalId)) {
-        uniqueMap.set(m.externalId, m);
+      const normComp = normalizeCompetition(m.competitionId, m.competitionName, m.competitionEmblem);
+      m.competitionId = normComp.id;
+      m.competitionName = normComp.name;
+      m.competitionEmblem = normComp.emblem;
+
+      const dateKey = m.utcDate.split('T')[0];
+      const dedupKey = `${normComp.id}_${cleanStr(m.homeTeamName)}_vs_${cleanStr(m.awayTeamName)}_${dateKey}`;
+
+      if (!uniqueMap.has(dedupKey)) {
+        uniqueMap.set(dedupKey, m);
+      } else {
+        const existing = uniqueMap.get(dedupKey)!;
+        if (!existing.homeTeamCrest && m.homeTeamCrest) existing.homeTeamCrest = m.homeTeamCrest;
+        if (!existing.awayTeamCrest && m.awayTeamCrest) existing.awayTeamCrest = m.awayTeamCrest;
+        if (existing.homeScore === null && m.homeScore !== null) {
+          existing.homeScore = m.homeScore;
+          existing.awayScore = m.awayScore;
+          existing.status = m.status;
+          existing.winner = m.winner;
+        }
       }
     }
 

@@ -9,6 +9,7 @@ import { RealFootballApiService } from '../services/realFootballApi.js';
 import { FootballApiService } from '../services/footballApi.js';
 import { resolveAndGradePastMatches } from '../services/scoringEngine.js';
 import { optionalAuthMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
+import { normalizeCompetition } from '../services/leagueRanking.js';
 
 const router = Router();
 
@@ -35,13 +36,13 @@ router.get('/', optionalAuthMiddleware, async (req: AuthenticatedRequest, res) =
       team,
       tzOffset,
       clientDate,
-      limit = 150,
+      limit = 350,
     } = req.query;
 
     const client = requireSupabase();
     const nowIso = new Date().toISOString();
     const tzOffsetMinutes = parseInt((tzOffset as string) || '0', 10) || 0;
-    const rowLimit = Math.min(Math.max(parseInt(limit as string, 10) || 150, 1), 500);
+    const rowLimit = Math.min(Math.max(parseInt(limit as string, 10) || 350, 1), 1000);
 
     let query = client.from('matches').select('*');
 
@@ -82,14 +83,24 @@ router.get('/', optionalAuthMiddleware, async (req: AuthenticatedRequest, res) =
     const { data: rawMatches, error } = await query;
     assertSupabaseOk(error, 'Fetch matches');
 
-    const matches = (rawMatches || []).filter(
-      (m: any) =>
-        !(
-          m.external_id >= 501000 &&
-          m.external_id < 600000 &&
-          (m.status === 'TIMED' || m.status === 'SCHEDULED')
-        )
-    );
+    const matches = (rawMatches || [])
+      .filter(
+        (m: any) =>
+          !(
+            m.external_id >= 501000 &&
+            m.external_id < 600000 &&
+            (m.status === 'TIMED' || m.status === 'SCHEDULED')
+          )
+      )
+      .map((m: any) => {
+        const norm = normalizeCompetition(m.competition_id, m.competition_name, m.competition_emblem);
+        return {
+          ...m,
+          competition_id: norm.id,
+          competition_name: norm.name,
+          competition_emblem: norm.emblem,
+        };
+      });
 
     const matchIds = matches.map((m: any) => m.id);
     const predCountByMatch: Record<number, number> = {};
