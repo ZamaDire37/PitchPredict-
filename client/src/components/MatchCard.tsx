@@ -195,16 +195,20 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
                 }`}
               >
                 {p.status === 'CORRECT' ? (
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 ) : p.status === 'INCORRECT' ? (
-                  <XCircle className="w-3 h-3 text-red-400" />
+                  <XCircle className="w-3.5 h-3.5 text-red-400" />
                 ) : (
                   <Clock className="w-3 h-3 text-cyan-400" />
                 )}
                 <span>
                   {p.market_type}: <strong>{p.selection}</strong>
                 </span>
-                {p.points_awarded > 0 && <span>(+{p.points_awarded} pts)</span>}
+                {p.status === 'CORRECT' ? (
+                  <span className="font-black">• ✓ RIGHT (+{p.points_awarded} pts)</span>
+                ) : p.status === 'INCORRECT' ? (
+                  <span className="font-black">• ✗ WRONG</span>
+                ) : null}
               </span>
             ))}
           </div>

@@ -296,11 +296,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
                         <div>
                           {s.status === 'WON' ? (
                             <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                              ✓ SET WON (+{s.points_delta} pts)
+                              ✓ RIGHT • SET WON (+{s.points_delta} pts)
                             </span>
                           ) : s.status === 'LOST' ? (
                             <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-red-500/20 text-red-400 border border-red-500/40">
-                              ✕ FAILED ({s.points_delta} pts penalty)
+                              ✗ WRONG • SET LOST ({s.points_delta} pts penalty)
                             </span>
                           ) : (
                             <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
@@ -315,25 +315,40 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
                         {s.predictions.map((p, idx) => (
                           <div
                             key={p.id}
-                            className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs flex items-center justify-between gap-2"
+                            className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                              p.status === 'CORRECT'
+                                ? 'bg-emerald-950/20 border-emerald-500/30'
+                                : p.status === 'INCORRECT'
+                                ? 'bg-red-950/20 border-red-500/30'
+                                : 'bg-slate-900/90 border-slate-800'
+                            }`}
                           >
                             <div className="truncate">
                               <div className="font-bold text-white truncate flex items-center gap-1.5">
                                 <span className="text-[9px] px-1 rounded bg-slate-800 text-slate-400">#{idx + 1}</span>
-                                <span>{p.home_team_short || p.home_team_name} vs {p.away_team_short || p.away_team_name}</span>
+                                <span>{p.home_team_short || p.home_team_name}</span>
+                                {p.home_score !== null && p.home_score !== undefined && p.away_score !== null && p.away_score !== undefined ? (
+                                  <span className="px-1.5 py-0.2 rounded bg-slate-950 border border-slate-700 font-mono text-emerald-400 text-[10px]">
+                                    {p.home_score} - {p.away_score}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500">vs</span>
+                                )}
+                                <span>{p.away_team_short || p.away_team_name}</span>
                               </div>
                               <div className="text-[11px] text-slate-400 mt-0.5">
                                 {p.market_type}: <strong className="text-amber-400 font-mono">{p.selection}</strong>
+                                {p.actual_result && <span className="ml-1 text-slate-500">({p.actual_result})</span>}
                               </div>
                             </div>
                             <div className="shrink-0 text-right">
                               {p.status === 'CORRECT' ? (
-                                <span className="text-emerald-400 font-bold flex items-center gap-1 text-[11px]">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Won
+                                <span className="text-emerald-400 font-black flex items-center gap-1 text-[11px]">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> ✓ RIGHT
                                 </span>
                               ) : p.status === 'INCORRECT' ? (
-                                <span className="text-red-400 font-bold flex items-center gap-1 text-[11px]">
-                                  <XCircle className="w-3.5 h-3.5" /> Missed
+                                <span className="text-red-400 font-black flex items-center gap-1 text-[11px]">
+                                  <XCircle className="w-3.5 h-3.5" /> ✗ WRONG
                                 </span>
                               ) : (
                                 <span className="text-cyan-400 font-bold flex items-center gap-1 text-[11px]">
@@ -427,14 +442,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
                       <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center shrink-0">
                         <div>
                           {p.status === 'CORRECT' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm shadow-emerald-500/10">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm shadow-emerald-500/10">
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>WON (+{p.points_awarded} pts)</span>
+                              <span>✓ RIGHT • WON (+{p.points_awarded} pts)</span>
                             </span>
                           ) : p.status === 'INCORRECT' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black bg-red-500/20 text-red-400 border border-red-500/40">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-red-500/20 text-red-400 border border-red-500/40">
                               <XCircle className="w-3.5 h-3.5" />
-                              <span>MISSED (0 pts)</span>
+                              <span>✗ WRONG • LOST (0 pts)</span>
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">

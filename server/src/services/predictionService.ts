@@ -4,6 +4,7 @@ import {
   insertRowWithAutoId,
 } from '../db/supabaseClient.js';
 import { getMarketDefinition } from './marketRegistry.js';
+import { resolveAndGradePastMatches } from './scoringEngine.js';
 
 export interface CreatePredictionItem {
   matchId: number;
@@ -351,6 +352,7 @@ export class PredictionService {
    * Get all predictions for a user, optionally filtered by mode and status
    */
   public static async getUserPredictions(userId: number, mode?: 'BASIC' | 'SERIOUS', status?: string) {
+    await resolveAndGradePastMatches();
     const client = requireSupabase();
 
     let query = client.from('predictions').select('*').eq('user_id', userId);
@@ -388,6 +390,7 @@ export class PredictionService {
    * Get all Serious Sets for a user with their nested predictions
    */
   public static async getUserSeriousSets(userId: number) {
+    await resolveAndGradePastMatches();
     const client = requireSupabase();
 
     const setsRes = await client
@@ -426,6 +429,7 @@ export class PredictionService {
    * Get full public profile and past predictions for a specific user.
    */
   public static async getUserProfile(userId: number) {
+    await resolveAndGradePastMatches();
     const client = requireSupabase();
 
     const userRes = await client
@@ -499,6 +503,7 @@ export class PredictionService {
     status?: string,
     limit: number = 60
   ) {
+    await resolveAndGradePastMatches();
     const client = requireSupabase();
 
     let query = client.from('predictions').select('*');

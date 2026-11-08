@@ -7,6 +7,7 @@ import { config } from './config.js';
 import { initDatabase, testSupabaseConnection } from './db/database.js';
 import { enrichAllMatchesInDatabase } from './db/enrichMatches.js';
 import { RealFootballApiService } from './services/realFootballApi.js';
+import { resolveAndGradePastMatches } from './services/scoringEngine.js';
 
 import authRoutes from './routes/auth.js';
 import matchRoutes from './routes/matches.js';
@@ -28,6 +29,7 @@ app.use(express.json());
   try {
     await initDatabase();
     console.log('[Startup] Connected to Supabase Free (PostgreSQL) — exclusive database ready.');
+    await resolveAndGradePastMatches(true);
     await enrichAllMatchesInDatabase();
     const res = await RealFootballApiService.syncRealMatches();
     console.log(`[Startup] ${res.message}`);

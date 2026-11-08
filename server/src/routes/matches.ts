@@ -7,6 +7,7 @@ import {
 } from '../db/supabaseClient.js';
 import { RealFootballApiService } from '../services/realFootballApi.js';
 import { FootballApiService } from '../services/footballApi.js';
+import { resolveAndGradePastMatches } from '../services/scoringEngine.js';
 import { optionalAuthMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -26,6 +27,7 @@ function computeUtcRangeForLocalDate(ymd: string, tzOffsetMinutes: number): {
 // GET /api/matches - Retrieve real football fixtures from Supabase
 router.get('/', optionalAuthMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
+    await resolveAndGradePastMatches();
     const {
       filter = 'upcoming',
       competition,

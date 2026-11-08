@@ -422,16 +422,16 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                       <div>
                         {pred.status === 'CORRECT' ? (
                           <div className="text-right">
-                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              WON (+{pred.points_awarded} pts)
+                              ✓ RIGHT • WON (+{pred.points_awarded} pts)
                             </span>
                           </div>
                         ) : pred.status === 'INCORRECT' ? (
                           <div className="text-right">
-                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-black bg-red-500/20 text-red-400 border border-red-500/30">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-red-500/20 text-red-400 border border-red-500/30">
                               <XCircle className="w-3.5 h-3.5" />
-                              {pred.mode === 'SERIOUS' ? 'MISSED (-10 risk)' : 'MISSED (0 pts)'}
+                              ✗ WRONG • {pred.mode === 'SERIOUS' ? 'MISSED (-10 set risk)' : 'LOST (0 pts)'}
                             </span>
                           </div>
                         ) : (
@@ -596,7 +596,13 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                       return (
                         <div
                           key={pred.id}
-                          className="bg-slate-900/90 rounded-2xl border border-slate-800 p-4 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                          className={`bg-slate-900/90 rounded-2xl border p-4 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            pred.status === 'CORRECT'
+                              ? 'border-emerald-500/40 bg-emerald-950/10'
+                              : pred.status === 'INCORRECT'
+                              ? 'border-red-500/40 bg-red-950/10'
+                              : 'border-slate-800'
+                          }`}
                         >
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 text-[11px] text-slate-400">
@@ -610,16 +616,22 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                                   minute: '2-digit',
                                 })}
                               </span>
-                              {isStarted && (
-                                <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
-                                  <Lock className="w-2.5 h-2.5" /> Locked
+                              {pred.match_status === 'FINISHED' ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                                  FT (Finished)
                                 </span>
+                              ) : (
+                                isStarted && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                                    <Lock className="w-2.5 h-2.5" /> Locked
+                                  </span>
+                                )
                               )}
                             </div>
 
                             <div className="text-sm font-bold text-white flex items-center gap-2">
                               <span>{pred.home_team_short || pred.home_team_name}</span>
-                              {pred.match_status === 'FINISHED' ? (
+                              {pred.match_status === 'FINISHED' && pred.home_score !== null && pred.away_score !== null ? (
                                 <span className="px-2 py-0.5 bg-slate-950 rounded text-xs font-mono text-emerald-400 font-bold border border-slate-800">
                                   {pred.home_score} - {pred.away_score}
                                 </span>
@@ -635,8 +647,8 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                                 {pred.market_type}: <strong className="text-emerald-400">{pred.selection}</strong>
                               </span>
                               {pred.actual_result && (
-                                <span className="text-[11px] text-slate-400">
-                                  (Actual: {pred.actual_result})
+                                <span className="text-[11px] text-slate-300 font-medium">
+                                  (Actual: <strong className="text-white">{pred.actual_result}</strong>)
                                 </span>
                               )}
                             </div>
@@ -647,16 +659,16 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                             <div>
                               {pred.status === 'CORRECT' ? (
                                 <div className="text-right">
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    WON (+{pred.points_awarded} pts)
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    ✓ RIGHT • WON (+{pred.points_awarded} pts)
                                   </span>
                                 </div>
                               ) : pred.status === 'INCORRECT' ? (
                                 <div className="text-right">
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black bg-red-500/20 text-red-400 border border-red-500/30">
-                                    <XCircle className="w-3.5 h-3.5" />
-                                    LOST (0 pts penalty)
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-red-500/20 text-red-400 border border-red-500/40">
+                                    <XCircle className="w-4 h-4" />
+                                    ✗ WRONG • LOST (0 pts)
                                   </span>
                                 </div>
                               ) : (
@@ -757,12 +769,12 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                               {isWon ? (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
                                   <CheckCircle2 className="w-4 h-4" />
-                                  SET WON! (+{set.points_delta} pts)
+                                  ✓ RIGHT • SET WON! (+{set.points_delta} pts)
                                 </span>
                               ) : isLost ? (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-red-500/20 text-red-400 border border-red-500/40">
                                   <XCircle className="w-4 h-4" />
-                                  SET FAILED (-10 pts penalty)
+                                  ✗ WRONG • SET LOST (-10 pts penalty)
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
@@ -778,26 +790,47 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                             {set.predictions?.map((p) => (
                               <div
                                 key={p.id}
-                                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70 text-xs"
+                                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl border text-xs ${
+                                  p.status === 'CORRECT'
+                                    ? 'bg-emerald-950/20 border-emerald-500/30'
+                                    : p.status === 'INCORRECT'
+                                    ? 'bg-red-950/20 border-red-500/30'
+                                    : 'bg-slate-950/60 border-slate-800/70'
+                                }`}
                               >
-                                <div className="truncate mr-2">
+                                <div className="flex flex-wrap items-center gap-1.5 mr-2">
                                   <span className="font-bold text-slate-200">
-                                    {p.home_team_short || p.home_team_name} vs {p.away_team_short || p.away_team_name}
+                                    {p.home_team_short || p.home_team_name}
                                   </span>
-                                  <span className="text-slate-500 mx-1.5">•</span>
+                                  {p.home_score !== null && p.home_score !== undefined && p.away_score !== null && p.away_score !== undefined ? (
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono font-bold text-emerald-400 text-[11px]">
+                                      {p.home_score} - {p.away_score}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-500">vs</span>
+                                  )}
+                                  <span className="font-bold text-slate-200">
+                                    {p.away_team_short || p.away_team_name}
+                                  </span>
+                                  <span className="text-slate-500 mx-1">•</span>
                                   <span className="text-slate-400">
                                     {p.market_type}: <strong className="text-amber-400 font-mono">{p.selection}</strong>
                                   </span>
+                                  {p.actual_result && (
+                                    <span className="text-[11px] text-slate-400">
+                                      (Actual: <strong className="text-slate-200">{p.actual_result}</strong>)
+                                    </span>
+                                  )}
                                 </div>
 
-                                <div>
+                                <div className="shrink-0">
                                   {p.status === 'CORRECT' ? (
-                                    <span className="text-emerald-400 font-bold flex items-center gap-1 text-[11px]">
-                                      <CheckCircle2 className="w-3 h-3" /> Correct
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-black inline-flex items-center gap-1 text-[11px]">
+                                      <CheckCircle2 className="w-3.5 h-3.5" /> ✓ RIGHT (+{p.odds_points} pts)
                                     </span>
                                   ) : p.status === 'INCORRECT' ? (
-                                    <span className="text-red-400 font-bold flex items-center gap-1 text-[11px]">
-                                      <XCircle className="w-3 h-3" /> Missed
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 font-black inline-flex items-center gap-1 text-[11px]">
+                                      <XCircle className="w-3.5 h-3.5" /> ✗ WRONG (Missed)
                                     </span>
                                   ) : (
                                     <span className="text-slate-400 font-medium text-[11px]">

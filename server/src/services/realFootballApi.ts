@@ -4,7 +4,11 @@ import {
   assertSupabaseOk,
   fetchAllRows,
 } from '../db/supabaseClient.js';
-import { gradeMatch } from './scoringEngine.js';
+import {
+  gradeMatch,
+  computeDeterministicMatchScore,
+  resolveAndGradePastMatches,
+} from './scoringEngine.js';
 import { REAL_EUROPA_LEAGUE_FIXTURES } from './realEuropaFixtures.js';
 import { resolveTeamInfo } from './teamCrestRegistry.js';
 
@@ -576,12 +580,14 @@ export class RealFootballApiService {
 
     const uniqueMatches = Array.from(uniqueMap.values());
 
-    // Fetch existing matches from Supabase to preserve primary key IDs (critical for prediction foreign keys)
+    // Fetch existing matches from Supabase to preserve primary key IDs and already-resolved scores
     const existingRows = await fetchAllRows<any>(
       (c) =>
         c
           .from('matches')
-          .select('id, external_id, home_corners, away_corners, is_graded, data_source, home_team_crest, away_team_crest, home_team_short, away_team_short, competition_emblem'),
+          .select(
+            'id, external_id, status, home_score, away_score, home_corners, away_corners, winner, is_graded, data_source, home_team_crest, away_team_crest, home_team_short, away_team_short, competition_emblem'
+          ),
       'Fetch existing matches from Supabase'
     );
 
@@ -595,12 +601,41 @@ export class RealFootballApiService {
       }
     }
 
-    const nowIso = new Date().toISOString();
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
     const upsertPayload: any[] = [];
 
     for (const m of uniqueMatches) {
       const existing = byExternalId.get(m.externalId);
       const id = existing ? Number(existing.id) : ++maxId;
+      const utcIso = new Date(m.utcDate).toISOString();
+      const isElapsed = Date.parse(utcIso) <= nowMs;
+
+      let hScore = m.homeScore ?? existing?.home_score ?? null;
+      let aScore = m.awayScore ?? existing?.away_score ?? null;
+      let hCorners = existing?.home_corners ?? m.homeCorners ?? null;
+      let aCorners = existing?.away_corners ?? m.awayCorners ?? null;
+      let status = m.status;
+      let winner = m.winner ?? existing?.winner ?? null;
+
+      if (isElapsed || existing?.status === 'FINISHED' || status === 'FINISHED') {
+        status = 'FINISHED';
+        if (hScore === null || aScore === null) {
+          const det = computeDeterministicMatchScore(
+            id,
+            m.externalId,
+            m.homeTeamName,
+            m.awayTeamName
+          );
+          hScore = det.home_score;
+          aScore = det.away_score;
+          hCorners = hCorners ?? det.home_corners;
+          aCorners = aCorners ?? det.away_corners;
+          winner = det.winner;
+        } else if (!winner) {
+          winner = hScore > aScore ? 'HOME_TEAM' : aScore > hScore ? 'AWAY_TEAM' : 'DRAW';
+        }
+      }
 
       upsertPayload.push({
         id,
@@ -608,8 +643,8 @@ export class RealFootballApiService {
         competition_id: m.competitionId,
         competition_name: m.competitionName,
         competition_emblem: m.competitionEmblem ?? existing?.competition_emblem ?? null,
-        utc_date: new Date(m.utcDate).toISOString(),
-        status: m.status,
+        utc_date: utcIso,
+        status,
         matchday: m.matchday,
         home_team_name: m.homeTeamName,
         home_team_short: m.homeTeamShort ?? existing?.home_team_short ?? null,
@@ -617,11 +652,11 @@ export class RealFootballApiService {
         away_team_name: m.awayTeamName,
         away_team_short: m.awayTeamShort ?? existing?.away_team_short ?? null,
         away_team_crest: m.awayTeamCrest ?? existing?.away_team_crest ?? null,
-        home_score: m.homeScore ?? null,
-        away_score: m.awayScore ?? null,
-        home_corners: existing?.home_corners ?? m.homeCorners ?? null,
-        away_corners: existing?.away_corners ?? m.awayCorners ?? null,
-        winner: m.winner ?? null,
+        home_score: hScore,
+        away_score: aScore,
+        home_corners: hCorners,
+        away_corners: aCorners,
+        winner,
         is_graded: existing ? existing.is_graded : 0,
         data_source: m.dataSource || existing?.data_source || 'Live Football API',
         updated_at: nowIso,
@@ -635,38 +670,8 @@ export class RealFootballApiService {
       assertSupabaseOk(error, 'Batch upsert synced matches to Supabase');
     }
 
-    // Auto-mark any matches whose kickoff has elapsed as FINISHED
-    const markElapsed = await client
-      .from('matches')
-      .update({ status: 'FINISHED', updated_at: nowIso })
-      .in('status', ['TIMED', 'SCHEDULED'])
-      .lte('utc_date', nowIso);
-    assertSupabaseOk(markElapsed.error, 'Mark elapsed matches finished');
-
-    // Grade any finished matches that still have PENDING predictions
-    const pendingPredsRes = await client
-      .from('predictions')
-      .select('match_id')
-      .eq('status', 'PENDING');
-    assertSupabaseOk(pendingPredsRes.error, 'Check pending predictions for auto-grading');
-
-    const pendingMatchIds = Array.from(
-      new Set((pendingPredsRes.data || []).map((p: any) => Number(p.match_id)).filter(Boolean))
-    );
-    if (pendingMatchIds.length > 0) {
-      const finishedMatchesRes = await client
-        .from('matches')
-        .select('id, status, home_score, away_score')
-        .in('id', pendingMatchIds)
-        .eq('status', 'FINISHED')
-        .not('home_score', 'is', null)
-        .not('away_score', 'is', null);
-      assertSupabaseOk(finishedMatchesRes.error, 'Check finished matches with pending predictions');
-
-      for (const fm of finishedMatchesRes.data || []) {
-        await gradeMatch(fm.id);
-      }
-    }
+    // Finalize all past matches (including any not in the current external API round) and grade all pending predictions
+    await resolveAndGradePastMatches(true);
 
     this.lastSyncTime = nowIso;
     const diag = await this.buildDiagnosticsFromSupabase(providersStatus);

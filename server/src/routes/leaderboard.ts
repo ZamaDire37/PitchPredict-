@@ -3,12 +3,14 @@ import {
   fetchAllRows,
   sendRouteError,
 } from '../db/supabaseClient.js';
+import { resolveAndGradePastMatches } from '../services/scoringEngine.js';
 
 const router = Router();
 
 // GET /api/leaderboard/basic - Leaderboard for Basic Mode directly from Supabase
 router.get('/basic', async (req, res) => {
   try {
+    await resolveAndGradePastMatches();
     const section = (req.query.section as string) || 'points';
     const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysAgoMs = Date.parse(sevenDaysAgoIso);
@@ -207,6 +209,7 @@ router.get('/basic', async (req, res) => {
 // GET /api/leaderboard/serious - Leaderboard for Serious Mode directly from Supabase
 router.get('/serious', async (req, res) => {
   try {
+    await resolveAndGradePastMatches();
     const section = (req.query.section as string) || 'points';
     const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysAgoMs = Date.parse(sevenDaysAgoIso);
