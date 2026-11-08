@@ -151,10 +151,13 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
                   </div>
                   <ul className="space-y-1.5 text-slate-300 text-[11px] list-disc list-inside">
                     <li>
-                      Predictions are grouped into custom <strong>Sets</strong> (<strong>Make as many selections as you want!</strong>).
+                      Predictions are grouped into custom <strong>Sets (Accumulators / Parlays)</strong> (<strong>Make as many selections as you want!</strong>).
                     </li>
                     <li>
-                      <strong className="text-amber-400">100% Perfect Set:</strong> If every single pick in your set is correct, you win all accumulated points!
+                      <strong className="text-amber-400">Multiplicative Compound Odds:</strong> In Serious sets, odds multiply together! Combined Odds = Odds₁ × Odds₂ × ... × Oddsₙ. Payout Points = Math.round(Combined Odds × 10).
+                    </li>
+                    <li>
+                      <strong className="text-emerald-400">100% Perfect Set:</strong> If every single pick in your set is correct, you win the entire compounded multi-odds payout!
                     </li>
                     <li>
                       <strong className="text-red-400 underline font-bold">At least 1 wrong pick:</strong> Deducts <strong>10 points ONCE</strong> for the entire set, regardless of how many failed.
@@ -183,27 +186,35 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
               <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-950 to-slate-900 border border-cyan-500/30 space-y-2">
                 <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm">
                   <BarChart3 className="w-4 h-4" />
-                  <span>The Odds & Points Determination Philosophy</span>
+                  <span>The Authentic Sports Betting Odds Architecture</span>
                 </div>
                 <p className="text-slate-300 text-xs leading-relaxed">
-                  In traditional bookmaking, odds reflect the implied probability of an event happening. In PitchPredict, we translate this probability directly into an integer <strong>Points Value Matrix</strong>:
+                  Every selection in PitchPredict is governed by <strong>real decimal sportsbook odds</strong>. To maintain a clean point scale, points are awarded in exact 1-to-1 proportion: <strong className="text-cyan-300">Points = Math.round(Odds × 10)</strong>.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
                   <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-center">
-                    <span className="text-[10px] text-slate-400 block font-semibold">High Probability (Safe)</span>
-                    <span className="text-emerald-400 font-black text-sm font-mono">+5 to +8 pts</span>
-                    <span className="text-[10px] text-slate-500 block mt-0.5">Low risk, frequent wins</span>
+                    <span className="text-[10px] text-slate-400 block font-semibold">Short Odds (Safe Lines)</span>
+                    <span className="text-emerald-400 font-black text-sm font-mono">@1.06 to @1.45</span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">+11 to +15 pts</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-center">
                     <span className="text-[10px] text-slate-400 block font-semibold">Standard 50/50 Markets</span>
-                    <span className="text-cyan-400 font-black text-sm font-mono">+10 to +12 pts</span>
-                    <span className="text-[10px] text-slate-500 block mt-0.5">Core balance & skill</span>
+                    <span className="text-cyan-400 font-black text-sm font-mono">@1.85 to @2.10</span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">+19 to +21 pts</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-center">
-                    <span className="text-[10px] text-slate-400 block font-semibold">Rare & Exact Scores</span>
-                    <span className="text-amber-400 font-black text-sm font-mono">+14 to +50 pts</span>
-                    <span className="text-[10px] text-slate-500 block mt-0.5">Maximum point multipliers</span>
+                    <span className="text-[10px] text-slate-400 block font-semibold">Exact Scores & Longshots</span>
+                    <span className="text-amber-400 font-black text-sm font-mono">@6.50 to @65.00</span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">+65 to +650 pts</span>
                   </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-[11px] text-slate-300 mt-2">
+                  <strong className="text-cyan-300">Accumulator / Parlay Compounding:</strong> In Serious Mode sets, multiple selections compound multiplicatively:
+                  <div className="font-mono text-xs text-amber-300 font-bold mt-1">
+                    Combined Odds = Pick 1 Odds × Pick 2 Odds × Pick 3 Odds...
+                  </div>
+                  Example: Pick 1 (@2.10) × Pick 2 (@1.90) × Pick 3 (@1.85) = <span className="text-emerald-300 font-bold">7.38x Combined Odds (+74 pts potential payout)</span>!
                 </div>
               </div>
 
@@ -215,7 +226,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
                       1
                     </span>
                     <span className="font-bold text-white text-xs sm:text-sm">
-                      Tier 1: High Probability & Double Coverage (5 – 8 Points)
+                      Tier 1: High Probability & Double Coverage (@1.06 – @1.45 • 11 – 15 Points)
                     </span>
                   </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
@@ -228,27 +239,27 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Double Chance (1X, 12, X2):</strong> Covers 2 of 3 outcomes</span>
-                    <span className="font-bold font-mono text-emerald-400">+6 pts</span>
+                    <span className="font-bold font-mono text-emerald-400">@1.30 – 1.45 (+13 to +15 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Over 0.5 Goals:</strong> Any goal in the entire match</span>
-                    <span className="font-bold font-mono text-emerald-400">+5 pts</span>
+                    <span className="font-bold font-mono text-emerald-400">@1.06 (+11 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Under 5.5 Goals:</strong> 5 or fewer goals scored</span>
-                    <span className="font-bold font-mono text-emerald-400">+6 pts</span>
+                    <span className="font-bold font-mono text-emerald-400">@1.04 (+10 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
-                    <span><strong>Draw No Bet (DNB):</strong> Push/refund if match is drawn</span>
-                    <span className="font-bold font-mono text-emerald-400">+8 pts</span>
+                    <span><strong>Draw No Bet (Home DNB):</strong> Push/refund if match is drawn</span>
+                    <span className="font-bold font-mono text-emerald-400">@1.55 (+16 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Over 1.5 Goals:</strong> 2+ total goals (~78% of games)</span>
-                    <span className="font-bold font-mono text-emerald-400">+8 pts</span>
+                    <span className="font-bold font-mono text-emerald-400">@1.28 (+13 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
-                    <span><strong>2 - 3 Goals Range:</strong> Most common goal band</span>
-                    <span className="font-bold font-mono text-emerald-400">+8 pts</span>
+                    <span><strong>1 - 3 Goals Range:</strong> Conservative goal band</span>
+                    <span className="font-bold font-mono text-emerald-400">@1.45 (+15 pts)</span>
                   </div>
                 </div>
               </div>
@@ -261,7 +272,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
                       2
                     </span>
                     <span className="font-bold text-white text-xs sm:text-sm">
-                      Tier 2: Standard 50/50 & Core Markets (10 – 12 Points)
+                      Tier 2: Standard 50/50 & Core Markets (@1.85 – @2.10 • 19 – 21 Points)
                     </span>
                   </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
@@ -273,28 +284,28 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
-                    <span><strong>Match Winner (Home / Away Win):</strong> Regular 90m outcome</span>
-                    <span className="font-bold font-mono text-cyan-400">+10 pts</span>
+                    <span><strong>Match Winner (Home Win):</strong> Regular 90m outcome</span>
+                    <span className="font-bold font-mono text-cyan-400">@2.10 (+21 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Both Teams to Score (BTTS Yes / No):</strong> 50/50 baseline</span>
-                    <span className="font-bold font-mono text-cyan-400">+10 pts</span>
+                    <span className="font-bold font-mono text-cyan-400">@1.85 – 1.95 (+19 to +20 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Over / Under 2.5 Goals:</strong> The universal goals line</span>
-                    <span className="font-bold font-mono text-cyan-400">+10 pts</span>
+                    <span className="font-bold font-mono text-cyan-400">@1.90 (+19 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Odd / Even Total Goals:</strong> Binary match distribution</span>
-                    <span className="font-bold font-mono text-cyan-400">+10 pts</span>
+                    <span className="font-bold font-mono text-cyan-400">@1.85 – 1.95 (+19 to +20 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
-                    <span><strong>Corners Over / Under 8.5 & 9.5:</strong> Standard corner line</span>
-                    <span className="font-bold font-mono text-cyan-400">+10 to +12 pts</span>
+                    <span><strong>Corners Over / Under 9.5:</strong> Standard corner line</span>
+                    <span className="font-bold font-mono text-cyan-400">@1.85 – 1.95 (+19 to +20 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
-                    <span><strong>Home Clean Sheet:</strong> Home team keeps shutout</span>
-                    <span className="font-bold font-mono text-cyan-400">+12 pts</span>
+                    <span><strong>2 - 3 Goals Bracket:</strong> Most balanced scoring band</span>
+                    <span className="font-bold font-mono text-cyan-400">@2.00 (+20 pts)</span>
                   </div>
                 </div>
               </div>
@@ -307,7 +318,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
                       3
                     </span>
                     <span className="font-bold text-white text-xs sm:text-sm">
-                      Tier 3: Strategic Combos, Handicaps & Margins (14 – 25 Points)
+                      Tier 3: Strategic Combos, Handicaps & Margins (@2.60 – @5.50 • 26 – 55 Points)
                     </span>
                   </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
@@ -320,35 +331,35 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Full-Time Draw (X):</strong> Draws occur in ~24% of fixtures</span>
-                    <span className="font-bold font-mono text-amber-400">+15 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@3.40 (+34 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>European Handicap (-1):</strong> Win by 2+ goals or exact 1</span>
-                    <span className="font-bold font-mono text-amber-400">+14 to +18 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@3.60 – 3.75 (+36 to +38 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Result + Over 2.5 Goals:</strong> Combo winner and 3+ goals</span>
-                    <span className="font-bold font-mono text-amber-400">+18 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@3.10 – 4.40 (+31 to +44 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>BTTS & Match Winner:</strong> Both teams score & winner decided</span>
-                    <span className="font-bold font-mono text-amber-400">+20 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@3.80 – 5.20 (+38 to +52 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Draw & Over 2.5 Goals:</strong> High-scoring tie (e.g. 2-2)</span>
-                    <span className="font-bold font-mono text-amber-400">+24 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@9.50 (+95 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Winning Margin (By 1, 2+, Blowout 3+):</strong> Goal gap precision</span>
-                    <span className="font-bold font-mono text-amber-400">+14 to +22 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@3.50 – 5.50 (+35 to +55 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>BTTS Yes & Under 2.5:</strong> Only possible via 1-1 draw</span>
-                    <span className="font-bold font-mono text-amber-400">+25 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@5.50 (+55 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>12+ Match Corners:</strong> Heavy corner barrage</span>
-                    <span className="font-bold font-mono text-amber-400">+15 to +22 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@4.50 (+45 pts)</span>
                   </div>
                 </div>
               </div>
@@ -361,40 +372,40 @@ export const RulesModal: React.FC<RulesModalProps> = ({ onClose, initialTab = 'R
                       4
                     </span>
                     <span className="font-bold text-white text-xs sm:text-sm">
-                      Tier 4: Precision Exact Scores & Extreme Outliers (30 – 50 Points!)
+                      Tier 4: Precision Exact Scores & Extreme Outliers (@6.50 – @65.00 • 65 – 650 Points!)
                     </span>
                   </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/30">
-                    Highest Multiplier
+                    Highest Multipliers
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  The most challenging predictions in football. Exact scorelines carry the highest point payouts:
+                  The most challenging predictions in football. Exact scorelines carry authentic high odds payouts:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
-                    <span><strong>Standard Exact Scores (1-0, 2-0, 2-1, 1-1, 0-1, 0-2):</strong> Common scorelines</span>
-                    <span className="font-bold font-mono text-emerald-400">+30 pts</span>
+                    <span><strong>Standard Exact Scores (1-0, 2-0, 2-1, 1-1, 0-1):</strong> Common scorelines</span>
+                    <span className="font-bold font-mono text-emerald-400">@6.50 – 9.50 (+65 to +95 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Under 0.5 Goals (0-0 Bore Draw):</strong> Only ~7% of games</span>
-                    <span className="font-bold font-mono text-amber-400">+35 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@9.00 (+90 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>High Scoring Thrillers (3-2, 2-3, 4-1, 1-4):</strong> 5-goal thrillers</span>
-                    <span className="font-bold font-mono text-amber-400">+35 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@26.00 – 50.00 (+260 to +500 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>Dominant Blowouts (4-0, 0-4):</strong> 4-goal shutouts</span>
-                    <span className="font-bold font-mono text-amber-400">+40 pts</span>
+                    <span className="font-bold font-mono text-amber-400">@38.00 – 55.00 (+380 to +550 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>3 - 3 Epic Draw:</strong> 6-goal draw rarity</span>
-                    <span className="font-bold font-mono text-red-400">+45 pts</span>
+                    <span className="font-bold font-mono text-red-400">@45.00 (+450 pts)</span>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex justify-between items-center">
                     <span><strong>4 - 2 / 2 - 4 Wild Shootouts:</strong> Ultimate score payout</span>
-                    <span className="font-bold font-mono text-red-400 font-black">+50 pts 🔥</span>
+                    <span className="font-bold font-mono text-red-400 font-black">@60.00 – 65.00 (+600 to +650 pts) 🔥</span>
                   </div>
                 </div>
               </div>

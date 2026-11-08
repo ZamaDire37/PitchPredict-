@@ -311,12 +311,17 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
                           }`}
                         >
                           <div className="text-xs truncate font-semibold">{opt.label}</div>
-                          <div
-                            className={`text-[11px] font-bold mt-1 ${
-                              mode === 'SERIOUS' ? 'text-rose-400' : 'text-emerald-400'
-                            }`}
-                          >
-                            +{opt.oddsPoints} pts
+                          <div className="flex items-center justify-between mt-1 text-[11px]">
+                            <span className="font-mono font-bold text-amber-300">
+                              @{(opt.oddsPoints / 10).toFixed(2)}
+                            </span>
+                            <span
+                              className={`font-bold ${
+                                mode === 'SERIOUS' ? 'text-rose-400' : 'text-emerald-400'
+                              }`}
+                            >
+                              +{opt.oddsPoints} pts
+                            </span>
                           </div>
                         </button>
                       );
@@ -347,11 +352,11 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
                       <button
                         type="button"
                         onClick={() =>
-                          handleToggleOption('EXACT_SCORE', `${customHomeScore}-${customAwayScore}`, 30)
+                          handleToggleOption('EXACT_SCORE', `${customHomeScore}-${customAwayScore}`, 70)
                         }
                         className="ml-auto px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition-colors"
                       >
-                        Set {customHomeScore}-{customAwayScore} (+30 pts)
+                        Set {customHomeScore}-{customAwayScore} (@7.00 • +70 pts)
                       </button>
                     </div>
                   )}
@@ -383,6 +388,9 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
                 <span className="text-slate-400">Selected:</span>
                 <span className="px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-bold font-mono">
                   {selectedMarket} ({selectedSelection})
+                </span>
+                <span className="font-mono text-amber-300 font-bold">
+                  @{(selectedOdds / 10).toFixed(2)}
                 </span>
                 <span className={`font-bold ${mode === 'SERIOUS' ? 'text-rose-400' : 'text-emerald-400'}`}>
                   +{selectedOdds} pts

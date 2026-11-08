@@ -355,7 +355,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
                                   <Clock className="w-3.5 h-3.5" /> Pending
                                 </span>
                               )}
-                              <span className="text-[10px] text-slate-500 font-mono block">+{p.odds_points} pts</span>
+                              <span className="text-[10px] text-slate-400 font-mono block">@{(p.odds_points / 10).toFixed(2)} • +{p.odds_points} pts</span>
                             </div>
                           </div>
                         ))}
@@ -454,7 +454,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
                               <Clock className="w-3.5 h-3.5" />
-                              <span>PENDING (+{p.odds_points} pts)</span>
+                              <span>PENDING (@{(p.odds_points / 10).toFixed(2)} • +{p.odds_points} pts)</span>
                             </span>
                           )}
                         </div>

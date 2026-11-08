@@ -696,7 +696,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                 {mode === 'SERIOUS' && stagedPredictions.length > 0
                   ? `${stagedPredictions.length} ${stagedPredictions.length === 1 ? 'Selection' : 'Selections'} in Set (Unlimited Picks)`
                   : selectedOptionId
-                  ? `${selectedOptionId} (+${selectedOdds} pts${mode === 'SERIOUS' ? ' / -10 Risk' : ''})`
+                  ? `${selectedOptionId} (@${(selectedOdds / 10).toFixed(2)} • +${selectedOdds} pts${mode === 'SERIOUS' ? ' / -10 Risk' : ''})`
                   : 'Choose Prediction Option'}
               </span>
             </div>
@@ -764,6 +764,9 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
 
                   <div className="flex items-center justify-between text-xs mt-auto pt-1">
                     <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-mono font-bold text-amber-300">
+                        @{(opt.oddsPoints / 10).toFixed(2)}
+                      </span>
                       <span
                         className={`font-black font-mono ${
                           mode === 'SERIOUS'
@@ -775,7 +778,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                             : 'text-emerald-500'
                         }`}
                       >
-                        +{opt.oddsPoints} pts
+                        (+{opt.oddsPoints} pts)
                       </span>
                       {mode === 'SERIOUS' && isSelected && (
                         <span className="text-[9px] font-bold text-rose-300 bg-rose-950/80 px-1 py-0.2 rounded border border-rose-800/40">
@@ -819,10 +822,10 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                 />
                 <button
                   type="button"
-                  onClick={() => handleOptionToggle(`${customHome}-${customAway}`, 30)}
+                  onClick={() => handleOptionToggle(`${customHome}-${customAway}`, 70)}
                   className="px-3.5 py-2 sm:py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition-colors min-h-[38px] sm:min-h-0"
                 >
-                  Select {customHome}-{customAway}
+                  Select {customHome}-{customAway} (@7.00 • +70 pts)
                 </button>
               </div>
             </div>
@@ -866,8 +869,11 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                   <span className="px-2.5 py-1 rounded-lg font-bold font-mono border bg-slate-800 text-emerald-400 border-slate-700">
                     {activeMarketDef.name}: {selectedOptionId}
                   </span>
+                  <span className="font-mono text-amber-300 font-bold">
+                    @{(selectedOdds / 10).toFixed(2)}
+                  </span>
                   <span className="font-black text-emerald-400">
-                    +{selectedOdds} pts
+                    (+{selectedOdds} pts)
                   </span>
                 </div>
               ) : (
@@ -916,7 +922,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
                   ) : (
                     <>
                       <Shield className="w-4 h-4" />
-                      <span>Submit Basic Prediction (+{selectedOdds} pts)</span>
+                      <span>Submit Basic Prediction (@{(selectedOdds / 10).toFixed(2)} • +{selectedOdds} pts)</span>
                     </>
                   )
                 ) : (

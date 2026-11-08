@@ -424,7 +424,12 @@ export async function evaluateSeriousSet(setId: number) {
   const nowIso = new Date().toISOString();
 
   if (incorrectCount === 0) {
-    const totalPointsWon = preds.reduce((acc, p) => acc + p.odds_points, 0);
+    // Accumulator compound odds: multiply odds of each selection in the set
+    const combinedOdds = preds.reduce((acc, p) => acc * (p.odds_points / 10), 1);
+    const totalPointsWon =
+      set.potential_points && set.potential_points > 0
+        ? set.potential_points
+        : Math.max(1, Math.round(combinedOdds * 10));
     const newBalance = user.serious_points + totalPointsWon;
     const newStreak = Math.max(0, user.serious_streak || 0) + 1;
     const newBest = Math.max(user.serious_best_streak || 0, newStreak);
@@ -461,7 +466,7 @@ export async function evaluateSeriousSet(setId: number) {
       mode: 'SERIOUS',
       delta: totalPointsWon,
       balance_after: newBalance,
-      reason: `Set Won: "${set.name}" (${correctCount}/${preds.length} correct) [Bonus: +${totalPointsWon} pts]`,
+      reason: `Set Won: "${set.name}" (${correctCount}/${preds.length} correct) [Combined Odds: ${combinedOdds.toFixed(2)}x -> +${totalPointsWon} pts]`,
       serious_set_id: setId,
       created_at: nowIso,
     });

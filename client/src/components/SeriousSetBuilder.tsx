@@ -48,7 +48,9 @@ export const SeriousSetBuilder: React.FC<SeriousSetBuilderProps> = ({ onSuccess,
     return null;
   }
 
-  const totalPotentialPoints = stagedPredictions.reduce((acc, p) => acc + p.oddsPoints, 0);
+  // True Odds Compound Multiplier: Odds1 * Odds2 * ... * OddsN
+  const combinedMultiplier = stagedPredictions.reduce((acc, p) => acc * (p.oddsPoints / 10), 1);
+  const totalPotentialPoints = Math.max(1, Math.round(combinedMultiplier * 10));
 
   const handleSubmitSet = async () => {
     if (!isAuthenticated) {
@@ -108,7 +110,7 @@ export const SeriousSetBuilder: React.FC<SeriousSetBuilderProps> = ({ onSuccess,
               </span>
             </div>
             <p className="text-[10px] text-slate-300">
-              Potential: <strong className="text-rose-300">+{totalPotentialPoints} pts</strong> • Risk: <strong className="text-rose-400">-10 pts</strong>
+              Total Odds: <strong className="text-amber-300 font-mono">{combinedMultiplier.toFixed(2)}x</strong> • Potential: <strong className="text-rose-300">+{totalPotentialPoints} pts</strong> • Risk: <strong className="text-rose-400">-10 pts</strong>
             </p>
           </div>
         </div>
@@ -127,7 +129,7 @@ export const SeriousSetBuilder: React.FC<SeriousSetBuilderProps> = ({ onSuccess,
               <span>
                 <strong>Unlimited Selections:</strong> You can add as many selections as you want to your set!
                 All {stagedPredictions.length} {stagedPredictions.length === 1 ? 'prediction' : 'predictions'} must be
-                correct to win (+{totalPotentialPoints} pts). If even 1 fails,{' '}
+                correct to win ({combinedMultiplier.toFixed(2)}x combined odds = +{totalPotentialPoints} pts). If even 1 fails,{' '}
                 <strong className="text-rose-400 underline">10 points will be deducted once</strong> for the entire set.
               </span>
             </div>
@@ -153,6 +155,7 @@ export const SeriousSetBuilder: React.FC<SeriousSetBuilderProps> = ({ onSuccess,
                   <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
                     <span>{p.marketType}:</span>
                     <strong className="text-rose-300 font-mono">{p.selection}</strong>
+                    <span className="text-amber-300 font-mono font-bold">@{(p.oddsPoints / 10).toFixed(2)}</span>
                     <span className="text-emerald-400">(+{p.oddsPoints} pts)</span>
                   </div>
                 </div>
@@ -206,7 +209,7 @@ export const SeriousSetBuilder: React.FC<SeriousSetBuilderProps> = ({ onSuccess,
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black shadow-lg transition-all min-h-[42px] sm:min-h-0 bg-rose-700 hover:bg-rose-600 text-white shadow-rose-950/40 active:scale-95"
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Sign In to Lock In Set (+{totalPotentialPoints} pts)</span>
+                <span>Sign In to Lock In Set ({combinedMultiplier.toFixed(2)}x • +{totalPotentialPoints} pts)</span>
               </button>
             ) : (
               <button
@@ -224,7 +227,7 @@ export const SeriousSetBuilder: React.FC<SeriousSetBuilderProps> = ({ onSuccess,
                   <>
                     <Send className="w-3.5 h-3.5" />
                     <span>
-                      Lock In Set ({stagedPredictions.length} {stagedPredictions.length === 1 ? 'pick' : 'picks'} • +{totalPotentialPoints} pts)
+                      Lock In Set ({stagedPredictions.length} {stagedPredictions.length === 1 ? 'pick' : 'picks'} • {combinedMultiplier.toFixed(2)}x • +{totalPotentialPoints} pts)
                     </span>
                   </>
                 )}

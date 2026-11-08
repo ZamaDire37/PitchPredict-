@@ -29,22 +29,22 @@ export class PredictionService {
 
     switch (marketType) {
       case 'EXACT_SCORE':
-        return 30;
+        return 85;
       case 'CORNERS_OVER_UNDER':
-        return 12;
+        return 19;
       case 'BTTS':
-        return 10;
+        return 19;
       case 'GOALS_OVER_UNDER':
-        if (selection.includes('1.5')) return 8;
-        if (selection.includes('2.5')) return 10;
-        if (selection.includes('3.5')) return 12;
-        return 10;
+        if (selection.includes('1.5')) return 13;
+        if (selection.includes('2.5')) return 19;
+        if (selection.includes('3.5')) return 31;
+        return 19;
       case 'DOUBLE_CHANCE':
-        return 6;
+        return 13;
       case 'MATCH_WINNER':
-        return selection === 'DRAW' ? 15 : 10;
+        return selection === 'DRAW' ? 34 : selection === 'AWAY' ? 28 : 21;
       default:
-        return 10;
+        return 19;
     }
   }
 
@@ -207,13 +207,11 @@ export class PredictionService {
 
     const trimmedName = setName?.trim() || `Serious Set (${items.length} picks)`;
 
-    let totalPotentialPoints = 0;
     const validatedItems: Array<{ matchId: number; marketType: string; selection: string; oddsPoints: number }> = [];
 
     for (const item of items) {
       await this.validateMatchForPrediction(item.matchId);
       const oddsPoints = this.getMarketOddsPoints(item.marketType, item.selection);
-      totalPotentialPoints += oddsPoints;
       validatedItems.push({
         matchId: item.matchId,
         marketType: item.marketType,
@@ -221,6 +219,12 @@ export class PredictionService {
         oddsPoints,
       });
     }
+
+    // Accumulator compound odds: Combined Multiplier = Odds1 * Odds2 * ... * OddsN
+    // Each pick decimal odds = oddsPoints / 10.
+    // Total potential points awarded on all-correct slip = Math.round(combinedMultiplier * 10)
+    const combinedOdds = validatedItems.reduce((acc, item) => acc * (item.oddsPoints / 10), 1);
+    const totalPotentialPoints = Math.max(1, Math.round(combinedOdds * 10));
 
     const nowIso = new Date().toISOString();
     const createdSet = await insertRowWithAutoId<{ id: number }>(

@@ -438,7 +438,7 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                           <div className="text-right">
                             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                               <Clock className="w-3.5 h-3.5" />
-                              PENDING (+{pred.odds_points} pts)
+                              PENDING (@{(pred.odds_points / 10).toFixed(2)} • +{pred.odds_points} pts)
                             </span>
                           </div>
                         )}
@@ -675,7 +675,7 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                                 <div className="text-right">
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                                     <Clock className="w-3.5 h-3.5" />
-                                    PENDING (+{pred.odds_points} pts potential)
+                                    PENDING (@{(pred.odds_points / 10).toFixed(2)} • +{pred.odds_points} pts potential)
                                   </span>
                                 </div>
                               )}
@@ -769,7 +769,7 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                               {isWon ? (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
                                   <CheckCircle2 className="w-4 h-4" />
-                                  ✓ RIGHT • SET WON! (+{set.points_delta} pts)
+                                  ✓ RIGHT • SET WON! (@{(set.potential_points / 10).toFixed(2)}x • +{set.points_delta} pts)
                                 </span>
                               ) : isLost ? (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-red-500/20 text-red-400 border border-red-500/40">
@@ -779,7 +779,7 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                                   <Clock className="w-4 h-4" />
-                                  PENDING (+{set.potential_points} pts / -10 risk)
+                                  PENDING (@{(set.potential_points / 10).toFixed(2)}x • +{set.potential_points} pts / -10 risk)
                                 </span>
                               )}
                             </div>
@@ -826,7 +826,7 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                                 <div className="shrink-0">
                                   {p.status === 'CORRECT' ? (
                                     <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-black inline-flex items-center gap-1 text-[11px]">
-                                      <CheckCircle2 className="w-3.5 h-3.5" /> ✓ RIGHT (+{p.odds_points} pts)
+                                      <CheckCircle2 className="w-3.5 h-3.5" /> ✓ RIGHT (@{(p.odds_points / 10).toFixed(2)} • +{p.odds_points} pts)
                                     </span>
                                   ) : p.status === 'INCORRECT' ? (
                                     <span className="px-2.5 py-0.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 font-black inline-flex items-center gap-1 text-[11px]">
@@ -834,7 +834,7 @@ export const PredictionHistory: React.FC<PredictionHistoryProps> = ({ onOpenAuth
                                     </span>
                                   ) : (
                                     <span className="text-slate-400 font-medium text-[11px]">
-                                      Pending (+{p.odds_points} pts)
+                                      Pending (@{(p.odds_points / 10).toFixed(2)} • +{p.odds_points} pts)
                                     </span>
                                   )}
                                 </div>
