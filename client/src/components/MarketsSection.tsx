@@ -134,7 +134,7 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
       <div className="text-center py-16 bg-slate-900/60 border border-slate-800 rounded-3xl">
         <Calendar className="w-12 h-12 text-slate-600 mx-auto mb-2" />
         <h3 className="text-base font-bold text-white">No Active Fixtures Available</h3>
-        <p className="text-xs text-slate-400 mt-1">Please sync matches to load real fixtures.</p>
+        <p className="text-xs text-slate-400 mt-1">Upcoming fixtures will appear here once scheduled.</p>
       </div>
     );
   }

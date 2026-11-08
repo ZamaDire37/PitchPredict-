@@ -14,11 +14,9 @@ import { LeaderboardView } from './components/LeaderboardView';
 import { RulesModal } from './components/RulesModal';
 import { AuthModal } from './components/AuthModal';
 import { MatchSimModal } from './components/MatchSimModal';
-import { DatabaseModal } from './components/DatabaseModal';
-import { TimezoneModal } from './components/TimezoneModal';
 import { api } from './services/api';
 import { Match } from './types';
-import { ShieldCheck, Sparkles, Heart } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 const MainApp: React.FC = () => {
   const { refreshUser } = useAuth();
@@ -26,9 +24,7 @@ const MainApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('matches');
   const [matches, setMatches] = useState<Match[]>([]);
   const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncError, setSyncError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [matchFilter, setMatchFilter] = useState<string>('upcoming');
   const [competitionFilter, setCompetitionFilter] = useState<string>('ALL');
@@ -39,8 +35,6 @@ const MainApp: React.FC = () => {
   const [isRulesOpen, setIsRulesOpen] = useState<boolean>(false);
   const [rulesInitialTab, setRulesInitialTab] = useState<'RULES' | 'ODDS'>('RULES');
   const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
-  const [isDatabaseOpen, setIsDatabaseOpen] = useState<boolean>(false);
-  const [isTimezoneOpen, setIsTimezoneOpen] = useState<boolean>(false);
   const { tzOffsetMinutes, clientTodayYmd } = useTimezone();
 
   const handleOpenRules = (tab: 'RULES' | 'ODDS' = 'RULES') => {
@@ -51,6 +45,7 @@ const MainApp: React.FC = () => {
   const loadMatches = async () => {
     try {
       setLoadingMatches(true);
+      setLoadError(null);
       const res = await api.getMatches(
         matchFilter,
         competitionFilter,
@@ -60,11 +55,10 @@ const MainApp: React.FC = () => {
         clientTodayYmd
       );
       setMatches(res.matches);
-      setSyncError(null);
     } catch (err: any) {
       console.error('Error fetching matches:', err);
       setMatches([]);
-      setSyncError(err.message || 'Database unavailable: Unable to load matches from Supabase.');
+      setLoadError('Matches are temporarily unavailable.');
     } finally {
       setLoadingMatches(false);
     }
@@ -73,23 +67,6 @@ const MainApp: React.FC = () => {
   useEffect(() => {
     loadMatches();
   }, [matchFilter, competitionFilter, tzOffsetMinutes, clientTodayYmd]);
-
-  const handleSyncApi = async () => {
-    setIsSyncing(true);
-    setSyncMessage(null);
-    setSyncError(null);
-    try {
-      const res = await api.syncMatches();
-      await loadMatches();
-      await refreshUser();
-      setSyncMessage(res.message || 'Football API synchronization complete!');
-      setTimeout(() => setSyncMessage(null), 8000);
-    } catch (err: any) {
-      setSyncError(err.message || 'Failed to sync football data from live APIs.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const handlePredictionSuccess = async () => {
     await loadMatches();
@@ -129,10 +106,6 @@ const MainApp: React.FC = () => {
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenRules={() => handleOpenRules('RULES')}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
-        onOpenDatabase={() => setIsDatabaseOpen(true)}
-        onOpenTimezone={() => setIsTimezoneOpen(true)}
-        onSyncApi={handleSyncApi}
-        isSyncing={isSyncing}
       />
 
       {/* Mode Status Banner */}
@@ -144,16 +117,12 @@ const MainApp: React.FC = () => {
           <MatchList
             matches={matches}
             loading={loadingMatches}
+            loadError={loadError}
             onSelectMatch={(m) => setSelectedMatch(m)}
-            onSync={handleSyncApi}
-            onOpenTimezone={() => setIsTimezoneOpen(true)}
-            isSyncing={isSyncing}
             filter={matchFilter}
             setFilter={setMatchFilter}
             competition={competitionFilter}
             setCompetition={setCompetitionFilter}
-            syncMessage={syncMessage}
-            syncError={syncError}
           />
         )}
 
@@ -217,14 +186,6 @@ const MainApp: React.FC = () => {
           onClose={() => setIsSimulatorOpen(false)}
           onGraded={handleSimulatedMatchGraded}
         />
-      )}
-
-      {isDatabaseOpen && (
-        <DatabaseModal onClose={() => setIsDatabaseOpen(false)} />
-      )}
-
-      {isTimezoneOpen && (
-        <TimezoneModal onClose={() => setIsTimezoneOpen(false)} />
       )}
 
       {/* Footer */}

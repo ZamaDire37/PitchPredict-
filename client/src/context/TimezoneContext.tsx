@@ -146,8 +146,9 @@ export const TimezoneProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   });
 
-  const isAuto = savedPreference === 'AUTO';
-  const activeTimezone = isAuto ? systemTimezone : savedPreference;
+  // Automatically use the viewer's device timezone for all kickoff times and date filtering
+  const isAuto = true;
+  const activeTimezone = systemTimezone;
 
   const now = new Date();
   const tzAbbr = useMemo(() => getTimezoneAbbreviation(now, activeTimezone), [activeTimezone]);

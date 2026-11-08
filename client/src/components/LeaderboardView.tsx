@@ -18,6 +18,7 @@ import {
   Crown,
   ShieldCheck,
   Calendar,
+  AlertCircle,
 } from 'lucide-react';
 import { UserProfileModal } from './UserProfileModal';
 
@@ -59,7 +60,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
         setLeaderboard([]);
         setSpotlights({});
         setHotStreakers([]);
-        setError(err.message || 'Database unavailable: Unable to fetch leaderboard from Supabase.');
+        setError('Leaderboard is temporarily unavailable.');
       } finally {
         setLoading(false);
       }
@@ -117,7 +118,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
 
       {error && (
         <div className="p-4 rounded-2xl bg-red-950/50 border border-red-500/40 text-red-200 text-xs flex items-start gap-3">
-          <div className="font-bold text-red-400">Database Error:</div>
+          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
           <div>{error}</div>
         </div>
       )}

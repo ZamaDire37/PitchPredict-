@@ -1,28 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Match } from '../types';
 import { MatchCard } from './MatchCard';
-import { api } from '../services/api';
 import { useGameMode } from '../context/GameModeContext';
 import { useTimezone } from '../context/TimezoneContext';
-import { normalizeCompetition, getLeagueRank } from '../services/leagueRanking';
+import { normalizeCompetition } from '../services/leagueRanking';
 import {
   Search,
   Calendar,
-  Filter,
-  RefreshCw,
   Trophy,
-  ShieldCheck,
   AlertCircle,
-  Wifi,
-  Database,
-  CheckCircle2,
-  Flame,
   ChevronDown,
   ChevronUp,
   Layers,
-  LayoutGrid,
   Clock,
-  Globe,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -30,37 +20,28 @@ import {
 interface MatchListProps {
   matches: Match[];
   loading: boolean;
+  loadError?: string | null;
   onSelectMatch: (match: Match) => void;
-  onSync: () => void;
-  onOpenTimezone?: () => void;
-  isSyncing: boolean;
   filter: string;
   setFilter: (f: string) => void;
   competition: string;
   setCompetition: (c: string) => void;
-  syncMessage?: string | null;
-  syncError?: string | null;
 }
 
 export const MatchList: React.FC<MatchListProps> = ({
   matches,
   loading,
+  loadError,
   onSelectMatch,
-  onSync,
-  onOpenTimezone,
-  isSyncing,
   filter,
   setFilter,
   competition,
   setCompetition,
-  syncMessage,
-  syncError,
 }) => {
   const { mode } = useGameMode();
-  const { formatKickoffParts, timezoneLabel, timezoneAbbr, timezone, clientTodayYmd } = useTimezone();
+  const { formatKickoffParts, timezone, clientTodayYmd } = useTimezone();
   const [searchQuery, setSearchQuery] = useState('');
-  const [diagnostics, setDiagnostics] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<'by_league' | 'chronological'>('by_league');
+  const [viewMode, setViewMode] = useState<'by_league' | 'by_kickoff'>('by_league');
   const [selectedDate, setSelectedDate] = useState<string>(() => clientTodayYmd || new Date().toISOString().split('T')[0]);
   const [collapsedLeagues, setCollapsedLeagues] = useState<Record<string, boolean>>({});
 
@@ -70,18 +51,6 @@ export const MatchList: React.FC<MatchListProps> = ({
       setSelectedDate(clientTodayYmd);
     }
   }, [clientTodayYmd]);
-
-  useEffect(() => {
-    api.getApiDiagnostics()
-      .then((res) => {
-        if (res?.diagnostics) {
-          setDiagnostics(res.diagnostics);
-        }
-      })
-      .catch((err) => {
-        console.warn('Diagnostics fetch failed:', err);
-      });
-  }, [matches.length, isSyncing]);
 
   const hasBelgianMatches = useMemo(() => matches.some((m) => m.competition_id === 'BEL'), [matches]);
 
@@ -186,12 +155,12 @@ export const MatchList: React.FC<MatchListProps> = ({
 
   const formatNextKickoff = (utcDateStr?: string) => {
     if (!utcDateStr) return '';
-    const { datePrefix, timeDisplay, tzAbbr } = formatKickoffParts(utcDateStr);
-    return `${datePrefix} at ${timeDisplay} ${tzAbbr}`.trim();
+    const { datePrefix, timeDisplay } = formatKickoffParts(utcDateStr);
+    return `${datePrefix} at ${timeDisplay}`.trim();
   };
 
-  // 1. CHRONOLOGICAL MATCHES: sorted strictly by kickoff time from earliest to latest
-  const chronologicalMatches = useMemo(() => {
+  // 1. BY KICKOFF TIME MATCHES: sorted strictly by kickoff time from earliest to latest
+  const byKickoffMatches = useMemo(() => {
     return matches
       .filter((m) => {
         if (competition !== 'ALL' && m.competition_id !== competition) return false;
@@ -307,116 +276,6 @@ export const MatchList: React.FC<MatchListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Live API Connectivity & Verification Banner */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md backdrop-blur-md">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-xs">
-              <Wifi className="w-3.5 h-3.5" />
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-white">Live Football API Status:</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  CONNECTED
-                </span>
-                <span className="text-slate-400 text-[11px] hidden md:inline">
-                  (TheSportsDB Free API • OpenFootball Public API • OpenLigaDB)
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Displaying actual real matches scheduled to be played. Kickoff dates are strictly in the future. Predictions lock at kickoff.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            {onOpenTimezone && (
-              <button
-                onClick={onOpenTimezone}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-300 border border-slate-700 transition-colors"
-                title={`Active Timezone: ${timezoneLabel} (Click to change)`}
-              >
-                <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="hidden sm:inline">Timezone:</span>
-                <span className="font-bold text-white">{timezoneAbbr}</span>
-              </button>
-            )}
-
-            <button
-              onClick={onSync}
-              disabled={isSyncing}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition-colors ${
-                isSyncing ? 'opacity-70' : ''
-              }`}
-              title="Refresh live fixtures directly from football APIs"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'Fetching Live API...' : 'Sync Live APIs'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Sync Feedback Alert */}
-        {syncMessage && (
-          <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>{syncMessage}</span>
-          </div>
-        )}
-
-        {syncError && (
-          <div className="mt-3 p-2.5 rounded-xl bg-red-950/60 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-            <span>{syncError}</span>
-          </div>
-        )}
-
-        {/* Mobile Compact Provider Status (< sm) */}
-        <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex sm:hidden items-center justify-between text-[11px]">
-          <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            Verified Real Matches
-          </span>
-          {diagnostics?.totalMatchesInDb > 0 && (
-            <span className="font-mono text-slate-300 text-[10px]">
-              {diagnostics.totalMatchesInDb} Fixtures
-            </span>
-          )}
-        </div>
-
-        {/* Live Provider Breakdown Badges (>= sm) */}
-        <div className="mt-3 pt-3 border-t border-slate-800/80 hidden sm:flex flex-wrap items-center gap-2 text-[11px]">
-          <span className="text-slate-400 font-semibold flex items-center gap-1">
-            <Database className="w-3.5 h-3.5 text-slate-500" />
-            Active Live API Feeds:
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-950 text-slate-300 border border-slate-800 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            OpenFootball Public Datasets (EPL, LaLiga, SerieA, Bundesliga, Ligue1, WC, Euro)
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-950 text-slate-300 border border-slate-800 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            TheSportsDB Free API (Champions League, Europa League)
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-950 text-slate-300 border border-slate-800 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            OpenLigaDB Live REST API (Bundesliga)
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-950 text-emerald-400 border border-emerald-500/30 font-semibold">
-            <Database className="w-3.5 h-3.5 text-emerald-400" />
-            Supabase Cloud Database Ready
-          </span>
-          {diagnostics?.totalMatchesInDb > 0 && (
-            <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {diagnostics.totalMatchesInDb} Verified Real Matches
-            </span>
-          )}
-        </div>
-      </div>
-
       {/* Top Filter and Search Bar */}
       <div
         className={`p-4 rounded-2xl border shadow-md backdrop-blur-md space-y-4 transition-colors ${
@@ -467,24 +326,6 @@ export const MatchList: React.FC<MatchListProps> = ({
           </div>
         </div>
 
-        {/* Timezone Indicator Sub-bar */}
-        <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 pt-0.5 px-0.5 border-t border-slate-800/40">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span>Kickoffs matched to: <strong className="text-cyan-300 font-semibold">{timezoneLabel}</strong></span>
-          </div>
-          {onOpenTimezone && (
-            <button
-              type="button"
-              onClick={onOpenTimezone}
-              className="text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2 transition-colors flex items-center gap-1"
-            >
-              <Globe className="w-3 h-3" />
-              <span>Change Timezone</span>
-            </button>
-          )}
-        </div>
-
         {/* Competition Badges Filter (All 9 Real Competitions) */}
         <div
           className={`flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x flex-nowrap pt-1 border-t -mx-1 px-1 transition-colors ${
@@ -517,7 +358,7 @@ export const MatchList: React.FC<MatchListProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-1.5 text-slate-300 font-bold">
               <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Match Date ({timezoneAbbr}):</span>
+              <span>Match Date:</span>
               <span className="text-white font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
                 {formatFullDateDisplay(selectedDate)}
               </span>
@@ -584,12 +425,12 @@ export const MatchList: React.FC<MatchListProps> = ({
           </div>
         </div>
 
-        {/* View Mode Toggle: By League vs Chronological */}
+        {/* View Mode Toggle: By League vs By Kickoff Time */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-800/60 text-xs">
           <div className="flex items-center gap-2">
             <span className="text-slate-400 font-semibold flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-emerald-400" />
-              <span>View Mode:</span>
+              <span>View:</span>
             </span>
             <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800">
               <button
@@ -609,18 +450,18 @@ export const MatchList: React.FC<MatchListProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode('chronological')}
+                onClick={() => setViewMode('by_kickoff')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  viewMode === 'chronological'
+                  viewMode === 'by_kickoff'
                     ? mode === 'SERIOUS'
                       ? 'bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-md font-black'
                       : 'bg-emerald-500 text-slate-950 shadow-md font-black'
                     : 'text-slate-400 hover:text-white'
                 }`}
-                title="Sort all matches chronologically by earliest kickoff first"
+                title="Sort all matches by kickoff time from earliest to latest"
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>Chronological</span>
+                <span>By Kickoff Time</span>
               </button>
             </div>
           </div>
@@ -662,15 +503,22 @@ export const MatchList: React.FC<MatchListProps> = ({
             />
           ))}
         </div>
+      ) : loadError && matches.length === 0 ? (
+        <div className="text-center py-16 px-4 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
+          <AlertCircle className="w-12 h-12 text-slate-500 mx-auto" />
+          <h3 className="text-base font-bold text-white">Matches are temporarily unavailable.</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            Please check back in a few moments.
+          </p>
+        </div>
       ) : viewMode === 'by_league' ? (
         // ==================== BY LEAGUE VIEW ====================
         groupedByLeague.length === 0 ? (
           <div className="text-center py-14 px-4 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
             <Calendar className="w-12 h-12 text-slate-600 mx-auto" />
-            <h3 className="text-base font-bold text-white">No Fixtures Scheduled for {formatFullDateDisplay(selectedDate)}</h3>
+            <h3 className="text-base font-bold text-white">No matches scheduled</h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              No matches were returned for this date in your active timezone ({timezoneLabel}).
-              Try picking another day, or switch to Chronological view to browse all upcoming fixtures.
+              There are no matches scheduled for {formatFullDateDisplay(selectedDate)}.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
               <button
@@ -682,11 +530,11 @@ export const MatchList: React.FC<MatchListProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode('chronological')}
+                onClick={() => setViewMode('by_kickoff')}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-md"
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>View All Chronologically</span>
+                <span>View By Kickoff Time</span>
               </button>
             </div>
           </div>
@@ -785,33 +633,23 @@ export const MatchList: React.FC<MatchListProps> = ({
           </div>
         )
       ) : (
-        // ==================== CHRONOLOGICAL VIEW ====================
-        chronologicalMatches.length === 0 ? (
+        // ==================== BY KICKOFF TIME VIEW ====================
+        byKickoffMatches.length === 0 ? (
           <div className="text-center py-16 px-4 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
             <Calendar className="w-12 h-12 text-slate-600 mx-auto" />
-            <h3 className="text-base font-bold text-white">No Fixtures Found</h3>
+            <h3 className="text-base font-bold text-white">No matches scheduled</h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              No matches matched your selected filter.
+              There are no matches scheduled matching your current filter.
             </p>
-            <div className="pt-2">
-              <button
-                onClick={onSync}
-                disabled={isSyncing}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>Retry Live API Sync</span>
-              </button>
-            </div>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-              <span>Sorted chronologically by earliest kickoff time</span>
-              <span className="font-mono text-emerald-400 font-bold">{chronologicalMatches.length} Matches</span>
+              <span>Sorted by kickoff time from earliest to latest</span>
+              <span className="font-mono text-emerald-400 font-bold">{byKickoffMatches.length} Matches</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {chronologicalMatches.map((m) => (
+              {byKickoffMatches.map((m) => (
                 <MatchCard key={m.id} match={m} onSelectMatch={onSelectMatch} />
               ))}
             </div>

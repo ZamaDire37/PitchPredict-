@@ -8,7 +8,7 @@ import {
 import { RealFootballApiService } from '../services/realFootballApi.js';
 import { FootballApiService } from '../services/footballApi.js';
 import { resolveAndGradePastMatches } from '../services/scoringEngine.js';
-import { optionalAuthMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
+import { optionalAuthMiddleware, adminAuthMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { normalizeCompetition } from '../services/leagueRanking.js';
 
 const router = Router();
@@ -144,8 +144,8 @@ router.get('/', optionalAuthMiddleware, async (req: AuthenticatedRequest, res) =
   }
 });
 
-// GET /api/matches/api-diagnostics
-router.get('/api-diagnostics', async (_req, res) => {
+// GET /api/matches/api-diagnostics (Admin-only technical diagnostics)
+router.get('/api-diagnostics', adminAuthMiddleware, async (_req, res) => {
   try {
     const diagnostics = await RealFootballApiService.getDiagnostics();
     res.json({ diagnostics });
@@ -194,12 +194,12 @@ router.get('/competitions/list', async (_req, res) => {
   }
 });
 
-// Settings: API Key status & runtime update
-router.get('/settings/football-api-key', (_req, res) => {
+// Settings: API Key status & runtime update (Admin only)
+router.get('/settings/football-api-key', adminAuthMiddleware, (_req, res) => {
   res.json(FootballApiService.getApiKeyMasked());
 });
 
-router.post('/settings/football-api-key', (req, res) => {
+router.post('/settings/football-api-key', adminAuthMiddleware, (req, res) => {
   try {
     const { apiKey } = req.body;
     FootballApiService.setApiKey(apiKey ? String(apiKey).trim() : '');
@@ -209,8 +209,8 @@ router.post('/settings/football-api-key', (req, res) => {
   }
 });
 
-// POST /api/matches/sync - Sync directly from live real football APIs into Supabase
-router.post('/sync', async (_req, res) => {
+// POST /api/matches/sync - Sync directly from live real football APIs into Supabase (Admin only)
+router.post('/sync', adminAuthMiddleware, async (_req, res) => {
   try {
     const result = await RealFootballApiService.syncRealMatches();
     res.json(result);
@@ -259,8 +259,8 @@ router.get('/:id', optionalAuthMiddleware, async (req: AuthenticatedRequest, res
   }
 });
 
-// POST /api/matches/:id/simulate-result (for testing & interactive grading demo)
-router.post('/:id/simulate-result', async (req, res) => {
+// POST /api/matches/:id/simulate-result (Admin only)
+router.post('/:id/simulate-result', adminAuthMiddleware, async (req, res) => {
   try {
     const matchId = parseInt(req.params.id as string, 10);
     const { homeScore, awayScore, homeCorners = 6, awayCorners = 4 } = req.body;

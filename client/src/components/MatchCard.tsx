@@ -85,11 +85,6 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
               <span>
                 {datePrefix} {timeDisplay}
               </span>
-              {tzAbbr && (
-                <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-800/80 text-slate-400 border border-slate-700/50">
-                  {tzAbbr}
-                </span>
-              )}
             </div>
           )}
         </div>

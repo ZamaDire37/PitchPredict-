@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGameMode } from '../context/GameModeContext';
-import { useTimezone } from '../context/TimezoneContext';
 import {
   Trophy,
   Flame,
@@ -13,11 +12,7 @@ import {
   HelpCircle,
   LogIn,
   LogOut,
-  RefreshCw,
   Sliders,
-  Sparkles,
-  Database,
-  Globe,
   Menu,
   X,
   ChevronRight,
@@ -29,10 +24,6 @@ interface NavbarProps {
   onOpenAuth: () => void;
   onOpenRules: () => void;
   onOpenSimulator: () => void;
-  onOpenDatabase?: () => void;
-  onOpenTimezone?: () => void;
-  onSyncApi: () => void;
-  isSyncing: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -41,14 +32,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuth,
   onOpenRules,
   onOpenSimulator,
-  onOpenDatabase,
-  onOpenTimezone,
-  onSyncApi,
-  isSyncing,
 }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const { mode, setMode, stagedPredictions } = useGameMode();
-  const { timezoneLabel, timezoneAbbr } = useTimezone();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<boolean>(false);
 
   return (
@@ -210,19 +196,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
 
-              {/* Database & Supabase Cloud Status (Desktop only to save mobile header space) */}
-              {onOpenDatabase && (
-                <button
-                  onClick={onOpenDatabase}
-                  className="hidden sm:flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-emerald-500/30 transition-colors text-xs font-semibold"
-                  title="Supabase Cloud Database & Schema Center"
-                >
-                  <Database className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="hidden lg:inline text-[11px]">Database</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                </button>
-              )}
-
               {/* Test Match Simulator button (Dev only - hidden in production) */}
               {import.meta.env.DEV && (
                 <button
@@ -231,32 +204,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   title="Match Simulator & Test Grader (Dev Mode Only)"
                 >
                   <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </button>
-              )}
-
-              {/* Sync Live Matches */}
-              <button
-                onClick={onSyncApi}
-                disabled={isSyncing}
-                className={`p-1.5 sm:p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 transition-colors ${
-                  isSyncing ? 'animate-spin' : ''
-                }`}
-                title="Sync Real Football Fixtures & Scores"
-              >
-                <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-
-              {/* Timezone Selector Button (Hidden on small mobile to avoid header clutter) */}
-              {onOpenTimezone && (
-                <button
-                  onClick={onOpenTimezone}
-                  className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/40 transition-colors"
-                  title={`Active Timezone: ${timezoneLabel} (Click to change)`}
-                >
-                  <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="font-mono font-bold text-[11px] text-cyan-200">
-                    {timezoneAbbr || 'TZ'}
-                  </span>
                 </button>
               )}
 
@@ -391,28 +338,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
               <span>Rules & Guide</span>
             </button>
-
-            {/* Timezone Shortcut Pill */}
-            {onOpenTimezone && (
-              <button
-                onClick={onOpenTimezone}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors bg-slate-900/80 text-slate-300 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/40 shrink-0 select-none active:scale-95"
-              >
-                <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Timezone ({timezoneAbbr})</span>
-              </button>
-            )}
-
-            {/* Database Shortcut Pill */}
-            {onOpenDatabase && (
-              <button
-                onClick={onOpenDatabase}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors bg-slate-900/80 text-emerald-400 border border-emerald-500/30 shrink-0 select-none active:scale-95"
-              >
-                <Database className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Database</span>
-              </button>
-            )}
           </div>
         </div>
       </header>
@@ -488,62 +413,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <div>
                         <div>Official Game Guide & Scoring Architecture</div>
                         <div className="text-[10px] text-slate-400 font-normal">Rules, 10 daily picks limit & points guide</div>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
-                  </button>
-
-                  {onOpenTimezone && (
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onOpenTimezone();
-                      }}
-                      className="flex items-center justify-between p-3 rounded-xl border bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/50 text-left font-bold transition-all"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Globe className="w-4 h-4 text-cyan-400 shrink-0" />
-                        <div>
-                          <div>Timezone Settings</div>
-                          <div className="text-[10px] text-cyan-300 font-normal">Current: {timezoneLabel} ({timezoneAbbr})</div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
-                    </button>
-                  )}
-
-                  {onOpenDatabase && (
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onOpenDatabase();
-                      }}
-                      className="flex items-center justify-between p-3 rounded-xl border bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/50 text-left font-bold transition-all"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Database className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <div>
-                          <div>Database & Supabase Cloud Center</div>
-                          <div className="text-[10px] text-emerald-400 font-normal">PostgreSQL Cloud Architecture Status</div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onSyncApi();
-                    }}
-                    disabled={isSyncing}
-                    className="flex items-center justify-between p-3 rounded-xl border bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/50 text-left font-bold transition-all"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <RefreshCw className={`w-4 h-4 text-cyan-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
-                      <div>
-                        <div>Sync Real Football APIs</div>
-                        <div className="text-[10px] text-slate-400 font-normal">Refresh Europa League, EPL & Champions League feeds</div>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />

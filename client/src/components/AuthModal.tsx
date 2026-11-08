@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, LogIn, UserPlus, ShieldCheck, Database, CheckCircle2 } from 'lucide-react';
+import { X, LogIn, UserPlus, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -94,12 +94,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 pb-safe">
-          {/* Database Trust Notice */}
+          {/* Trust Notice */}
           <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-[11px] text-slate-400 flex items-start gap-2.5">
-            <Database className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <span className="text-slate-200 font-bold block mb-0.5">Cloud Database Verification</span>
-              Your account and predictions are recorded on the official database ledger, ensuring verified accuracy across leaderboards and past prediction histories.
+              <span className="text-slate-200 font-bold block mb-0.5">Official Account Verification</span>
+              Your account and predictions are recorded on the official ledger, ensuring verified accuracy across leaderboards and past prediction histories.
             </div>
           </div>
 
@@ -184,7 +184,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>Supabase Ready</span>
+              <span>Verified Standings</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
