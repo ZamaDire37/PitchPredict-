@@ -141,3 +141,10 @@ CREATE POLICY "Enable all access for users sync" ON public.users FOR ALL USING (
 CREATE POLICY "Enable all access for predictions sync" ON public.predictions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Enable all access for serious_sets sync" ON public.serious_sets FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Enable all access for points_history sync" ON public.points_history FOR ALL USING (true) WITH CHECK (true);
+
+-- 8. KEEP SEQUENCES ALIGNED AFTER EXPLICIT-ID MIGRATIONS
+SELECT setval(pg_get_serial_sequence('public.users', 'id'), COALESCE((SELECT MAX(id) FROM public.users), 1), true);
+SELECT setval(pg_get_serial_sequence('public.serious_sets', 'id'), COALESCE((SELECT MAX(id) FROM public.serious_sets), 1), true);
+SELECT setval(pg_get_serial_sequence('public.predictions', 'id'), COALESCE((SELECT MAX(id) FROM public.predictions), 1), true);
+SELECT setval(pg_get_serial_sequence('public.points_history', 'id'), COALESCE((SELECT MAX(id) FROM public.points_history), 1), true);
+

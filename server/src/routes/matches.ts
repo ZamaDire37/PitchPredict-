@@ -1,142 +1,253 @@
 import { Router } from 'express';
-import { queryAll, queryOne } from '../db/database.js';
+import {
+  requireSupabase,
+  assertSupabaseOk,
+  fetchAllRows,
+  sendRouteError,
+} from '../db/supabaseClient.js';
 import { RealFootballApiService } from '../services/realFootballApi.js';
 import { FootballApiService } from '../services/footballApi.js';
 import { optionalAuthMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
-// GET /api/matches - Retrieve real football fixtures
-router.get('/', optionalAuthMiddleware, (req: AuthenticatedRequest, res) => {
+function computeUtcRangeForLocalDate(ymd: string, tzOffsetMinutes: number): {
+  startIso: string;
+  endIso: string;
+} {
+  const startMs = Date.parse(`${ymd}T00:00:00.000Z`) - tzOffsetMinutes * 60_000;
+  const endMs = Date.parse(`${ymd}T23:59:59.999Z`) - tzOffsetMinutes * 60_000;
+  return {
+    startIso: new Date(startMs).toISOString(),
+    endIso: new Date(endMs).toISOString(),
+  };
+}
+
+// GET /api/matches - Retrieve real football fixtures from Supabase
+router.get('/', optionalAuthMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
-    const { filter = 'upcoming', competition, date, team, tzOffset, clientDate, limit = 150 } = req.query;
+    const {
+      filter = 'upcoming',
+      competition,
+      date,
+      team,
+      tzOffset,
+      clientDate,
+      limit = 150,
+    } = req.query;
+
+    const client = requireSupabase();
     const nowIso = new Date().toISOString();
-    const tzOffsetMinutes = parseInt((tzOffset as string) || '0', 10);
-    const offsetModifier = (tzOffsetMinutes >= 0 ? `+${tzOffsetMinutes}` : `${tzOffsetMinutes}`) + ' minutes';
+    const tzOffsetMinutes = parseInt((tzOffset as string) || '0', 10) || 0;
+    const rowLimit = Math.min(Math.max(parseInt(limit as string, 10) || 150, 1), 500);
 
-    let sql = `
-      SELECT m.*,
-             (SELECT COUNT(*) FROM predictions p WHERE p.match_id = m.id) as prediction_count
-      FROM matches m
-      WHERE 1=1
-    `;
-    const params: any[] = [];
+    let query = client.from('matches').select('*');
 
-    // Filter by competition (CL, EL, PL, PD, SA, BL1, FL1, WC, EC, etc.)
     if (competition && competition !== 'ALL') {
-      sql += ' AND m.competition_id = ?';
-      params.push(competition);
+      query = query.eq('competition_id', String(competition));
     }
 
-    // Filter by specific team name
     if (team && typeof team === 'string' && team.trim()) {
-      sql += ' AND (m.home_team_name LIKE ? OR m.away_team_name LIKE ?)';
-      params.push(`%${team.trim()}%`, `%${team.trim()}%`);
+      const cleanTeam = team.trim().replace(/[,%()]/g, '');
+      if (cleanTeam) {
+        query = query.or(
+          `home_team_name.ilike.%${cleanTeam}%,away_team_name.ilike.%${cleanTeam}%`
+        );
+      }
     }
 
-    // Filter by date or status respecting user's timezone
-    if (date) {
-      sql += ' AND date(m.utc_date, ?) = ?';
-      params.push(offsetModifier, date);
+    if (date && typeof date === 'string') {
+      const { startIso, endIso } = computeUtcRangeForLocalDate(date, tzOffsetMinutes);
+      query = query.gte('utc_date', startIso).lte('utc_date', endIso);
     } else if (filter === 'today') {
       const todayStr = (clientDate as string) || nowIso.split('T')[0];
-      sql += ' AND date(m.utc_date, ?) = ?';
-      params.push(offsetModifier, todayStr);
+      const { startIso, endIso } = computeUtcRangeForLocalDate(todayStr, tzOffsetMinutes);
+      query = query.gte('utc_date', startIso).lte('utc_date', endIso);
     } else if (filter === 'upcoming') {
-      // ONLY show actual real fixtures scheduled to be played (kickoff in the future)
-      sql += " AND m.status IN ('TIMED', 'SCHEDULED') AND datetime(m.utc_date) > datetime(?)";
-      params.push(nowIso);
+      query = query.in('status', ['TIMED', 'SCHEDULED']).gt('utc_date', nowIso);
     } else if (filter === 'finished') {
-      sql += " AND m.status = 'FINISHED'";
+      query = query.eq('status', 'FINISHED');
     }
 
-    // Exclude any internal test entries or synthetic template fixtures
-    sql += " AND m.home_team_name NOT LIKE 'Test Team%' AND m.home_team_name NOT LIKE 'Team %' AND m.home_team_name != 'Live Home'";
-    sql += " AND NOT (m.external_id >= 501000 AND m.external_id < 600000 AND m.status IN ('TIMED', 'SCHEDULED'))";
+    query = query
+      .not('home_team_name', 'like', 'Test Team%')
+      .not('home_team_name', 'like', 'Team %')
+      .neq('home_team_name', 'Live Home')
+      .order('utc_date', { ascending: true })
+      .order('competition_name', { ascending: true })
+      .limit(rowLimit);
 
-    sql += ' ORDER BY m.utc_date ASC, m.competition_name ASC LIMIT ?';
-    params.push(parseInt(limit as string, 10) || 150);
+    const { data: rawMatches, error } = await query;
+    assertSupabaseOk(error, 'Fetch matches');
 
-    const matches = queryAll(sql, params);
+    const matches = (rawMatches || []).filter(
+      (m: any) =>
+        !(
+          m.external_id >= 501000 &&
+          m.external_id < 600000 &&
+          (m.status === 'TIMED' || m.status === 'SCHEDULED')
+        )
+    );
 
-    // If user is authenticated, attach user's predictions for each match
+    const matchIds = matches.map((m: any) => m.id);
+    const predCountByMatch: Record<number, number> = {};
+
+    if (matchIds.length > 0) {
+      const matchPredsRes = await client
+        .from('predictions')
+        .select('match_id')
+        .in('match_id', matchIds);
+      assertSupabaseOk(matchPredsRes.error, 'Count match predictions');
+      for (const row of matchPredsRes.data || []) {
+        predCountByMatch[row.match_id] = (predCountByMatch[row.match_id] || 0) + 1;
+      }
+    }
+
+    let predsByMatch: Record<number, any[]> | null = null;
     if (req.user) {
-      const userPreds = queryAll<{ match_id: number; id: number; mode: string; market_type: string; selection: string; status: string; points_awarded: number }>(
-        'SELECT id, match_id, mode, market_type, selection, status, points_awarded FROM predictions WHERE user_id = ?',
-        [req.user.id]
-      );
-      const predsByMatch: Record<number, any[]> = {};
-      for (const p of userPreds) {
+      const userPredsRes = await client
+        .from('predictions')
+        .select('id, match_id, mode, market_type, selection, status, points_awarded')
+        .eq('user_id', req.user.id);
+      assertSupabaseOk(userPredsRes.error, 'Fetch user match predictions');
+
+      predsByMatch = {};
+      for (const p of userPredsRes.data || []) {
         if (!predsByMatch[p.match_id]) predsByMatch[p.match_id] = [];
         predsByMatch[p.match_id].push(p);
       }
-
-      const matchesWithUserPreds = matches.map((m) => ({
-        ...m,
-        userPredictions: predsByMatch[m.id] || [],
-      }));
-
-      return res.json({ matches: matchesWithUserPreds });
     }
 
-    res.json({ matches });
+    const enrichedMatches = matches.map((m: any) => ({
+      ...m,
+      prediction_count: predCountByMatch[m.id] || 0,
+      ...(predsByMatch ? { userPredictions: predsByMatch[m.id] || [] } : {}),
+    }));
+
+    res.json({ matches: enrichedMatches });
   } catch (err: any) {
     console.error('Fetch matches error:', err);
-    res.status(500).json({ error: 'Failed to fetch matches' });
+    return sendRouteError(res, err, 'Failed to fetch matches');
   }
 });
 
-// GET /api/matches/api-diagnostics - Get real API connectivity, providers and diagnostics
-router.get('/api-diagnostics', (req, res) => {
+// GET /api/matches/api-diagnostics
+router.get('/api-diagnostics', async (_req, res) => {
   try {
-    const diagnostics = RealFootballApiService.getDiagnostics();
+    const diagnostics = await RealFootballApiService.getDiagnostics();
     res.json({ diagnostics });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to retrieve API diagnostics' });
+    return sendRouteError(res, err, 'Failed to retrieve API diagnostics');
   }
 });
 
-// GET /api/matches/:id - Single match details
-router.get('/:id', optionalAuthMiddleware, (req: AuthenticatedRequest, res) => {
+// GET /api/matches/competitions/list - All competitions with match counts
+router.get('/competitions/list', async (_req, res) => {
   try {
-    const matchId = parseInt(req.params.id as string, 10);
-    const match = queryOne('SELECT * FROM matches WHERE id = ?', [matchId]);
+    const rows = await fetchAllRows<{
+      competition_id: string;
+      competition_name: string;
+      competition_emblem: string | null;
+    }>(
+      (c) => c.from('matches').select('competition_id, competition_name, competition_emblem'),
+      'Fetch competitions list'
+    );
 
-    if (!match) {
-      return res.status(404).json({ error: 'Match not found' });
+    const map = new Map<
+      string,
+      { id: string; name: string; emblem?: string | null; match_count: number }
+    >();
+    for (const r of rows) {
+      const existing = map.get(r.competition_id);
+      if (existing) {
+        existing.match_count++;
+        if (!existing.emblem && r.competition_emblem) {
+          existing.emblem = r.competition_emblem;
+        }
+      } else {
+        map.set(r.competition_id, {
+          id: r.competition_id,
+          name: r.competition_name,
+          emblem: r.competition_emblem,
+          match_count: 1,
+        });
+      }
     }
 
-    let userPredictions = [];
-    if (req.user) {
-      userPredictions = queryAll(
-        'SELECT * FROM predictions WHERE user_id = ? AND match_id = ?',
-        [req.user.id, matchId]
-      );
-    }
-
-    res.json({ match, userPredictions });
+    const competitions = Array.from(map.values()).sort((a, b) => b.match_count - a.match_count);
+    res.json({ competitions });
   } catch (err: any) {
-    console.error('Fetch match error:', err);
-    res.status(500).json({ error: 'Failed to fetch match' });
+    return sendRouteError(res, err, 'Failed to fetch competitions');
   }
 });
 
-// POST /api/matches/sync - Sync directly from live real football APIs
-router.post('/sync', async (req, res) => {
+// Settings: API Key status & runtime update
+router.get('/settings/football-api-key', (_req, res) => {
+  res.json(FootballApiService.getApiKeyMasked());
+});
+
+router.post('/settings/football-api-key', (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    FootballApiService.setApiKey(apiKey ? String(apiKey).trim() : '');
+    res.json({ success: true, message: 'Football-Data.org API key updated for active server session.' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to save API key' });
+  }
+});
+
+// POST /api/matches/sync - Sync directly from live real football APIs into Supabase
+router.post('/sync', async (_req, res) => {
   try {
     const result = await RealFootballApiService.syncRealMatches();
     res.json(result);
   } catch (err: any) {
     console.error('Real football API sync error:', err.message);
-    res.status(502).json({
-      success: false,
-      error: `Live Football API error: ${err.message}. No fake matches will be created. Please check connectivity or try again.`,
-    });
+    return sendRouteError(
+      res,
+      err,
+      `Live Football API error: ${err.message}. No fake matches will be created.`,
+      502
+    );
+  }
+});
+
+// GET /api/matches/:id - Single match details
+router.get('/:id', optionalAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const matchId = parseInt(req.params.id as string, 10);
+    if (isNaN(matchId)) {
+      return res.status(400).json({ error: 'Invalid match ID' });
+    }
+
+    const client = requireSupabase();
+    const matchRes = await client.from('matches').select('*').eq('id', matchId).maybeSingle();
+    assertSupabaseOk(matchRes.error, 'Fetch match details');
+
+    if (!matchRes.data) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    let userPredictions: any[] = [];
+    if (req.user) {
+      const predsRes = await client
+        .from('predictions')
+        .select('*')
+        .eq('user_id', req.user.id)
+        .eq('match_id', matchId);
+      assertSupabaseOk(predsRes.error, 'Fetch user match predictions');
+      userPredictions = predsRes.data || [];
+    }
+
+    res.json({ match: matchRes.data, userPredictions });
+  } catch (err: any) {
+    console.error('Fetch match error:', err);
+    return sendRouteError(res, err, 'Failed to fetch match');
   }
 });
 
 // POST /api/matches/:id/simulate-result (for testing & interactive grading demo)
-router.post('/:id/simulate-result', (req, res) => {
+router.post('/:id/simulate-result', async (req, res) => {
   try {
     const matchId = parseInt(req.params.id as string, 10);
     const { homeScore, awayScore, homeCorners = 6, awayCorners = 4 } = req.body;
@@ -145,7 +256,7 @@ router.post('/:id/simulate-result', (req, res) => {
       return res.status(400).json({ error: 'homeScore and awayScore are required' });
     }
 
-    const gradingResult = FootballApiService.updateMatchResult(
+    const gradingResult = await FootballApiService.updateMatchResult(
       matchId,
       parseInt(homeScore, 10),
       parseInt(awayScore, 10),
@@ -154,57 +265,19 @@ router.post('/:id/simulate-result', (req, res) => {
       'FINISHED'
     );
 
-    const updatedMatch = queryOne('SELECT * FROM matches WHERE id = ?', [matchId]);
+    const client = requireSupabase();
+    const updatedRes = await client.from('matches').select('*').eq('id', matchId).maybeSingle();
+    assertSupabaseOk(updatedRes.error, 'Fetch updated simulated match');
 
     res.json({
       success: true,
-      match: updatedMatch,
+      match: updatedRes.data,
       gradingResult,
       message: `Match finished! Score: ${homeScore}-${awayScore}. Graded ${gradingResult.graded} predictions.`,
     });
   } catch (err: any) {
     console.error('Simulate result error:', err);
-    res.status(500).json({ error: 'Failed to simulate match result' });
-  }
-});
-
-// GET /api/matches/competitions/list - All competitions with match counts
-router.get('/competitions/list', (req, res) => {
-  try {
-    const comps = queryAll(`
-      SELECT competition_id as id,
-             competition_name as name,
-             competition_emblem as emblem,
-             COUNT(*) as match_count
-      FROM matches
-      GROUP BY competition_id
-      ORDER BY match_count DESC
-    `);
-    res.json({ competitions: comps });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch competitions' });
-  }
-});
-
-// Settings: API Key management
-router.get('/settings/football-api-key', (req, res) => {
-  const setting = queryOne<{ value: string }>(
-    "SELECT value FROM settings WHERE key = 'FOOTBALL_DATA_API_KEY'"
-  );
-  const hasKey = Boolean(setting?.value);
-  res.json({
-    configured: hasKey,
-    maskedKey: hasKey ? `${setting!.value.slice(0, 4)}...${setting!.value.slice(-4)}` : null,
-  });
-});
-
-router.post('/settings/football-api-key', (req, res) => {
-  try {
-    const { apiKey } = req.body;
-    FootballApiService.setApiKey(apiKey ? apiKey.trim() : '');
-    res.json({ success: true, message: 'Football-Data.org API key updated successfully.' });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to save API key' });
+    return sendRouteError(res, err, 'Failed to simulate match result');
   }
 });
 

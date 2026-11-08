@@ -1,125 +1,117 @@
-import { queryAll, queryOne, run } from './database.js';
+import {
+  requireSupabase,
+  assertSupabaseOk,
+  fetchAllRows,
+} from './supabaseClient.js';
 import { resolveTeamInfo, COMPETITION_EMBLEMS } from '../services/teamCrestRegistry.js';
 import { FootballApiService } from '../services/footballApi.js';
 import { REAL_EUROPA_LEAGUE_FIXTURES } from '../services/realEuropaFixtures.js';
 
-export function enrichAllMatchesInDatabase(): { updatedCount: number; cleanedTestCount: number } {
-  // 1. Delete dummy test matches inserted by unit tests (e.g. Team 1A, Team 2A, Test Team A)
-  const deleteResult = run(`
-    DELETE FROM matches 
-    WHERE home_team_name LIKE 'Team %'
-       OR home_team_name LIKE 'Test Team%'
-       OR home_team_name = 'Live Home'
-       OR away_team_name LIKE 'Team %'
-       OR away_team_name LIKE 'Test Team%'
-  `);
+export async function enrichAllMatchesInDatabase(): Promise<{
+  updatedCount: number;
+  cleanedTestCount: number;
+}> {
+  const client = requireSupabase();
 
-  // 1b. Permanently purge all legacy synthetic template fixtures
-  run(`
-    DELETE FROM matches 
-    WHERE external_id >= 501000 
-      AND external_id < 600000
-  `);
+  // 1. Delete dummy test matches if any ever existed
+  const delTest1 = await client.from('matches').delete().like('home_team_name', 'Test Team%');
+  assertSupabaseOk(delTest1.error, 'Clean test matches');
+  const delTest2 = await client.from('matches').delete().eq('home_team_name', 'Live Home');
+  assertSupabaseOk(delTest2.error, 'Clean Live Home matches');
 
-  // 1c. Set authentic data_source for any legacy matches where data_source was NULL
-  run(`
-    UPDATE matches
-    SET data_source = 'OpenLigaDB Live REST API'
-    WHERE data_source IS NULL AND external_id >= 900000 AND external_id < 1000000
-  `);
+  await FootballApiService.seedRealFixtures();
 
-  // 1d. Ensure Europa League fixtures are always present upon startup
-  try {
-    const elCount = queryOne<{ count: number }>("SELECT count(*) as count FROM matches WHERE competition_id = 'EL'");
-    if (!elCount || elCount.count < 5) {
-      for (const m of REAL_EUROPA_LEAGUE_FIXTURES) {
-        run(`
-          INSERT INTO matches (
-            external_id, competition_id, competition_name, competition_emblem,
-            utc_date, status, matchday,
-            home_team_name, home_team_short, home_team_crest,
-            away_team_name, away_team_short, away_team_crest,
-            home_score, away_score, home_corners, away_corners, winner, is_graded, data_source
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
-          ON CONFLICT(external_id) DO UPDATE SET
-            utc_date = excluded.utc_date,
-            status = excluded.status,
-            home_score = COALESCE(matches.home_score, excluded.home_score),
-            away_score = COALESCE(matches.away_score, excluded.away_score),
-            data_source = COALESCE(matches.data_source, excluded.data_source)
-        `, [
-          m.externalId, m.competitionId, m.competitionName, m.competitionEmblem,
-          m.utcDate, m.status, m.matchday,
-          m.homeTeamName, m.homeTeamShort, m.homeTeamCrest,
-          m.awayTeamName, m.awayTeamShort, m.awayTeamCrest,
-          m.homeScore, m.awayScore, m.homeCorners, m.awayCorners, m.winner, m.dataSource
-        ]);
-      }
+  // 2. Ensure Europa League fixtures are present
+  const elCountRes = await client
+    .from('matches')
+    .select('id', { count: 'exact', head: true })
+    .eq('competition_id', 'EL');
+  assertSupabaseOk(elCountRes.error, 'Check Europa League match count');
+
+  const allMatches = await fetchAllRows<any>(
+    (c) => c.from('matches').select('*'),
+    'Fetch matches for crest enrichment'
+  );
+
+  let maxId = 0;
+  const byExtId = new Map<number, any>();
+  for (const m of allMatches) {
+    const idNum = Number(m.id) || 0;
+    if (idNum > maxId) maxId = idNum;
+    if (m.external_id != null) byExtId.set(Number(m.external_id), m);
+  }
+
+  const nowIso = new Date().toISOString();
+
+  if ((elCountRes.count ?? 0) < 5) {
+    const elUpserts = REAL_EUROPA_LEAGUE_FIXTURES.map((m) => {
+      const existing = byExtId.get(m.externalId);
+      const id = existing ? Number(existing.id) : ++maxId;
+      return {
+        id,
+        external_id: m.externalId,
+        competition_id: m.competitionId,
+        competition_name: m.competitionName,
+        competition_emblem: m.competitionEmblem ?? null,
+        utc_date: new Date(m.utcDate).toISOString(),
+        status: m.status,
+        matchday: m.matchday,
+        home_team_name: m.homeTeamName,
+        home_team_short: m.homeTeamShort ?? null,
+        home_team_crest: m.homeTeamCrest ?? null,
+        away_team_name: m.awayTeamName,
+        away_team_short: m.awayTeamShort ?? null,
+        away_team_crest: m.awayTeamCrest ?? null,
+        home_score: existing?.home_score ?? m.homeScore ?? null,
+        away_score: existing?.away_score ?? m.awayScore ?? null,
+        home_corners: existing?.home_corners ?? m.homeCorners ?? null,
+        away_corners: existing?.away_corners ?? m.awayCorners ?? null,
+        winner: existing?.winner ?? m.winner ?? null,
+        is_graded: existing?.is_graded ?? 0,
+        data_source: existing?.data_source ?? m.dataSource,
+        updated_at: nowIso,
+      };
+    });
+
+    if (elUpserts.length > 0) {
+      const { error } = await client.from('matches').upsert(elUpserts, { onConflict: 'id' });
+      assertSupabaseOk(error, 'Seed Europa League fixtures');
     }
-  } catch (err) {
-    console.warn('Europa League seed warning:', err);
   }
 
-  const cleanedTestCount = deleteResult.changes;
-
-  // 2. Ensure marquee upcoming fixtures and authentic schedules are seeded and stale in-play resolved
-  try {
-    FootballApiService.seedRealFixtures(true);
-  } catch (err) {
-    console.warn('Marquee fixtures seed warning:', err);
+  // 3. Enrich any matches missing crests, short names, or competition emblems in batch
+  const toUpdate: any[] = [];
+  for (const m of allMatches) {
+    if (
+      !m.home_team_crest ||
+      !m.away_team_crest ||
+      !m.home_team_short ||
+      !m.away_team_short ||
+      !m.competition_emblem
+    ) {
+      const homeInfo = resolveTeamInfo(m.home_team_name, m.competition_id);
+      const awayInfo = resolveTeamInfo(m.away_team_name, m.competition_id);
+      toUpdate.push({
+        ...m,
+        home_team_crest: m.home_team_crest || homeInfo.crest,
+        home_team_short: m.home_team_short || homeInfo.shortName,
+        away_team_crest: m.away_team_crest || awayInfo.crest,
+        away_team_short: m.away_team_short || awayInfo.shortName,
+        competition_emblem:
+          m.competition_emblem || COMPETITION_EMBLEMS[m.competition_id] || COMPETITION_EMBLEMS.PL,
+        updated_at: nowIso,
+      });
+    }
   }
 
-  // 3. Fetch all matches needing crest, short name, or emblem enrichment
-  const matchesToEnrich = queryAll<{
-    id: number;
-    competition_id: string;
-    competition_name: string;
-    competition_emblem: string | null;
-    home_team_name: string;
-    home_team_short: string | null;
-    home_team_crest: string | null;
-    away_team_name: string;
-    away_team_short: string | null;
-    away_team_crest: string | null;
-  }>(`
-    SELECT id, competition_id, competition_name, competition_emblem,
-           home_team_name, home_team_short, home_team_crest,
-           away_team_name, away_team_short, away_team_crest
-    FROM matches
-    WHERE home_team_crest IS NULL 
-       OR away_team_crest IS NULL 
-       OR home_team_short IS NULL 
-       OR away_team_short IS NULL
-       OR competition_emblem IS NULL
-  `);
-
-  let updatedCount = 0;
-
-  for (const m of matchesToEnrich) {
-    const homeInfo = resolveTeamInfo(m.home_team_name, m.competition_id);
-    const awayInfo = resolveTeamInfo(m.away_team_name, m.competition_id);
-
-    const homeCrest = m.home_team_crest || homeInfo.crest;
-    const homeShort = m.home_team_short || homeInfo.shortName;
-
-    const awayCrest = m.away_team_crest || awayInfo.crest;
-    const awayShort = m.away_team_short || awayInfo.shortName;
-
-    const compEmblem = m.competition_emblem || COMPETITION_EMBLEMS[m.competition_id] || COMPETITION_EMBLEMS.PL;
-
-    run(`
-      UPDATE matches
-      SET home_team_crest = ?,
-          home_team_short = ?,
-          away_team_crest = ?,
-          away_team_short = ?,
-          competition_emblem = ?
-      WHERE id = ?
-    `, [homeCrest, homeShort, awayCrest, awayShort, compEmblem, m.id]);
-
-    updatedCount++;
+  for (let i = 0; i < toUpdate.length; i += 400) {
+    const chunk = toUpdate.slice(i, i + 400);
+    const { error } = await client.from('matches').upsert(chunk, { onConflict: 'id' });
+    assertSupabaseOk(error, 'Batch enrich match crests in Supabase');
   }
 
-  console.log(`[Database Enrichment] Cleaned ${cleanedTestCount} test matches; Enriched ${updatedCount} matches with official club crests & emblems.`);
-  return { updatedCount, cleanedTestCount };
+  console.log(
+    `[Supabase Enrichment] Enriched ${toUpdate.length} matches with official club crests & emblems.`
+  );
+  return { updatedCount: toUpdate.length, cleanedTestCount: 0 };
 }

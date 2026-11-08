@@ -1,9 +1,0 @@
-<resources>
-    <string name="app_name">Nudge Beep</string>
-    <string name="channel_task_reminders_name">Task Reminders</string>
-    <string name="channel_task_reminders_desc">Individual task alerts and customized reminder beeps</string>
-    <string name="channel_hourly_beep_name">Hourly Nudge Beep</string>
-    <string name="channel_hourly_beep_desc">Periodic checks that beep when you have unfinished tasks</string>
-    <string name="channel_daily_summary_name">Daily Summary</string>
-    <string name="channel_daily_summary_desc">End of day review for unfinished tasks</string>
-</resources>

@@ -4,10 +4,9 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { initDatabase } from './db/database.js';
+import { initDatabase, testSupabaseConnection } from './db/database.js';
 import { enrichAllMatchesInDatabase } from './db/enrichMatches.js';
 import { RealFootballApiService } from './services/realFootballApi.js';
-import { FootballApiService } from './services/footballApi.js';
 
 import authRoutes from './routes/auth.js';
 import matchRoutes from './routes/matches.js';
@@ -24,16 +23,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize DB and sync real football fixtures from live APIs
-initDatabase();
-enrichAllMatchesInDatabase();
-RealFootballApiService.syncRealMatches().then((res) => {
-  console.log(`[Startup] ${res.message}`);
-  enrichAllMatchesInDatabase();
-}).catch((err) => {
-  console.warn(`[Startup API Sync] ${err.message}`);
-  enrichAllMatchesInDatabase();
-});
+// Verify Supabase connectivity and sync live football fixtures into Supabase on startup
+(async () => {
+  try {
+    await initDatabase();
+    console.log('[Startup] Connected to Supabase Free (PostgreSQL) — exclusive database ready.');
+    await enrichAllMatchesInDatabase();
+    const res = await RealFootballApiService.syncRealMatches();
+    console.log(`[Startup] ${res.message}`);
+    await enrichAllMatchesInDatabase();
+  } catch (err: any) {
+    console.error(`[Startup Warning] ${err.message}`);
+  }
+})();
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -42,10 +44,14 @@ app.use('/api/predictions', predictionRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 
-// System status / health
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
+// System status / health (includes live Supabase status)
+app.get('/api/health', async (_req, res) => {
+  const dbCheck = await testSupabaseConnection();
+  const httpStatus = dbCheck.connected ? 200 : 503;
+  res.status(httpStatus).json({
+    status: dbCheck.connected ? 'ok' : 'degraded',
+    database: dbCheck.connected ? 'connected' : 'unavailable',
+    databaseError: dbCheck.error || null,
     serverTime: new Date().toISOString(),
     service: 'Football Prediction System',
     version: '1.0.0',
@@ -77,6 +83,7 @@ const PORT = config.port;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`=======================================================`);
   console.log(`  Football Prediction Engine running on port ${PORT}`);
+  console.log(`  Database: Supabase Free (PostgreSQL Cloud Only)`);
   console.log(`  API Base URL: http://localhost:${PORT}/api`);
   console.log(`=======================================================`);
 });

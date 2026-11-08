@@ -1,11 +1,19 @@
-import { db, queryAll, queryOne, run } from '../db/database.js';
+import {
+  requireSupabase,
+  assertSupabaseOk,
+  insertRowWithAutoId,
+} from '../db/supabaseClient.js';
 import { getMarketDefinition } from './marketRegistry.js';
-import { syncPredictionToSupabase } from '../db/supabaseClient.js';
 
 export interface CreatePredictionItem {
   matchId: number;
   marketType: string;
   selection: string;
+}
+
+function getTodayUtcStartIso(): string {
+  const todayYmd = new Date().toISOString().split('T')[0];
+  return `${todayYmd}T00:00:00.000Z`;
 }
 
 export class PredictionService {
@@ -40,16 +48,17 @@ export class PredictionService {
   }
 
   /**
-   * Validate that the match exists and has not started yet.
+   * Validate that the match exists in Supabase and has not started yet.
    */
-  public static validateMatchForPrediction(matchId: number) {
-    const match = queryOne<{
-      id: number;
-      utc_date: string;
-      status: string;
-      home_team_name: string;
-      away_team_name: string;
-    }>('SELECT id, utc_date, status, home_team_name, away_team_name FROM matches WHERE id = ?', [matchId]);
+  public static async validateMatchForPrediction(matchId: number) {
+    const client = requireSupabase();
+    const { data: match, error } = await client
+      .from('matches')
+      .select('id, utc_date, status, home_team_name, away_team_name')
+      .eq('id', matchId)
+      .maybeSingle();
+
+    assertSupabaseOk(error, 'Validate match for prediction');
 
     if (!match) {
       throw new Error(`Match #${matchId} not found.`);
@@ -59,23 +68,25 @@ export class PredictionService {
     const now = Date.now();
 
     if (kickoff <= now) {
-      throw new Error(`Match ${match.home_team_name} vs ${match.away_team_name} has already started. Predictions are locked.`);
+      throw new Error(
+        `Match ${match.home_team_name} vs ${match.away_team_name} has already started. Predictions are locked.`
+      );
     }
 
     if (match.status !== 'TIMED' && match.status !== 'SCHEDULED') {
-      throw new Error(`Match ${match.home_team_name} vs ${match.away_team_name} is no longer accepting predictions (status: ${match.status}).`);
+      throw new Error(
+        `Match ${match.home_team_name} vs ${match.away_team_name} is no longer accepting predictions (status: ${match.status}).`
+      );
     }
 
     return match;
   }
 
   /**
-   * Create a single or multiple Basic Mode predictions.
-   * In Basic Mode, users can only have 10 selections per day (resets daily at 00:00 UTC).
-   * If a prediction for the same match and market already exists for this user and is still PENDING,
-   * we update the selection without consuming an additional daily slot.
+   * Create a single or multiple Basic Mode predictions directly in Supabase.
+   * Users can place up to 10 Basic selections per UTC day.
    */
-  public static createBasicPredictions(userId: number, items: CreatePredictionItem[]) {
+  public static async createBasicPredictions(userId: number, items: CreatePredictionItem[]) {
     if (!items || items.length === 0) {
       throw new Error('No predictions submitted');
     }
@@ -84,20 +95,36 @@ export class PredictionService {
       throw new Error('In Basic Mode, users can only have 10 selections per day (limit of 10 selections).');
     }
 
-    // Check user's current Basic predictions created today (UTC day)
-    const dailyRow = queryOne<{ count: number }>(
-      "SELECT COUNT(*) as count FROM predictions WHERE user_id = ? AND mode = 'BASIC' AND date(created_at) = date('now')",
-      [userId]
-    );
-    const currentDailyCount = dailyRow ? dailyRow.count : 0;
+    const client = requireSupabase();
+    const todayStartIso = getTodayUtcStartIso();
 
-    // Determine how many items are NEW predictions vs updates to existing pending predictions
+    const dailyRes = await client
+      .from('predictions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('mode', 'BASIC')
+      .gte('created_at', todayStartIso);
+    assertSupabaseOk(dailyRes.error, 'Count daily Basic predictions');
+    const currentDailyCount = dailyRes.count ?? 0;
+
+    // Fetch existing Basic predictions for these matches by this user
+    const itemMatchIds = Array.from(new Set(items.map((i) => i.matchId)));
+    const existingRes = await client
+      .from('predictions')
+      .select('id, match_id, market_type, status')
+      .eq('user_id', userId)
+      .eq('mode', 'BASIC')
+      .in('match_id', itemMatchIds);
+    assertSupabaseOk(existingRes.error, 'Check existing Basic predictions');
+
+    const existingMap = new Map<string, { id: number; status: string }>();
+    for (const row of existingRes.data || []) {
+      existingMap.set(`${row.match_id}::${row.market_type}`, { id: row.id, status: row.status });
+    }
+
     let newSelectionsCount = 0;
     for (const item of items) {
-      const existing = queryOne<{ id: number; status: string }>(
-        "SELECT id, status FROM predictions WHERE user_id = ? AND match_id = ? AND market_type = ? AND mode = 'BASIC'",
-        [userId, item.matchId, item.marketType]
-      );
+      const existing = existingMap.get(`${item.matchId}::${item.marketType}`);
       if (!existing || existing.status !== 'PENDING') {
         newSelectionsCount++;
       }
@@ -112,54 +139,57 @@ export class PredictionService {
     const results = [];
 
     for (const item of items) {
-      const match = this.validateMatchForPrediction(item.matchId);
+      await this.validateMatchForPrediction(item.matchId);
       const oddsPoints = this.getMarketOddsPoints(item.marketType, item.selection);
-
-      // Check if user already predicted this market on this match
-      const existing = queryOne<{ id: number; status: string }>(
-        "SELECT id, status FROM predictions WHERE user_id = ? AND match_id = ? AND market_type = ? AND mode = 'BASIC'",
-        [userId, item.matchId, item.marketType]
-      );
+      const existing = existingMap.get(`${item.matchId}::${item.marketType}`);
 
       if (existing) {
         if (existing.status !== 'PENDING') {
           throw new Error(`Prediction #${existing.id} has already been graded.`);
         }
-        // Update selection without resetting original creation date
-        run(
-          'UPDATE predictions SET selection = ?, odds_points = ?, is_verified_account = 1 WHERE id = ?',
-          [item.selection, oddsPoints, existing.id]
-        );
-        syncPredictionToSupabase({
+
+        const updRes = await client
+          .from('predictions')
+          .update({
+            selection: item.selection,
+            odds_points: oddsPoints,
+            is_verified_account: true,
+          })
+          .eq('id', existing.id);
+        assertSupabaseOk(updRes.error, 'Update Basic prediction');
+
+        results.push({
           id: existing.id,
-          user_id: userId,
-          match_id: item.matchId,
-          mode: 'BASIC',
-          market_type: item.marketType,
+          updated: true,
+          matchId: item.matchId,
+          marketType: item.marketType,
           selection: item.selection,
-          odds_points: oddsPoints,
-          status: 'PENDING',
-        }).catch(() => {});
-        results.push({ id: existing.id, updated: true, matchId: item.matchId, marketType: item.marketType, selection: item.selection, oddsPoints });
+          oddsPoints,
+        });
       } else {
-        // Insert new
-        const insertRes = run(
-          `INSERT INTO predictions (user_id, match_id, mode, market_type, selection, odds_points, status, is_verified_account)
-           VALUES (?, ?, 'BASIC', ?, ?, ?, 'PENDING', 1)`,
-          [userId, item.matchId, item.marketType, item.selection, oddsPoints]
-        );
-        const newId = insertRes.lastInsertRowid;
-        syncPredictionToSupabase({
-          id: newId,
+        const inserted = await insertRowWithAutoId<{ id: number }>('predictions', {
           user_id: userId,
           match_id: item.matchId,
           mode: 'BASIC',
+          serious_set_id: null,
           market_type: item.marketType,
           selection: item.selection,
           odds_points: oddsPoints,
           status: 'PENDING',
-        }).catch(() => {});
-        results.push({ id: newId, updated: false, matchId: item.matchId, marketType: item.marketType, selection: item.selection, oddsPoints });
+          points_awarded: 0,
+          is_verified_account: true,
+          created_at: new Date().toISOString(),
+        }, 'id');
+
+        existingMap.set(`${item.matchId}::${item.marketType}`, { id: inserted.id, status: 'PENDING' });
+        results.push({
+          id: inserted.id,
+          updated: false,
+          matchId: item.matchId,
+          marketType: item.marketType,
+          selection: item.selection,
+          oddsPoints,
+        });
       }
     }
 
@@ -167,23 +197,20 @@ export class PredictionService {
   }
 
   /**
-   * Create a Serious Mode Set (grouped predictions).
-   * Users can make as many selections as they want (1, 2, 5, 10, 20+ picks).
-   * All predictions in the set must be for matches that have not started.
+   * Create a Serious Mode Set (grouped predictions) directly in Supabase.
    */
-  public static createSeriousSet(userId: number, setName: string, items: CreatePredictionItem[]) {
+  public static async createSeriousSet(userId: number, setName: string, items: CreatePredictionItem[]) {
     if (!items || items.length < 1) {
       throw new Error('Serious Mode sets require at least 1 prediction. You can add as many selections as you want!');
     }
 
     const trimmedName = setName?.trim() || `Serious Set (${items.length} picks)`;
 
-    // Pre-validate all matches before inserting anything
     let totalPotentialPoints = 0;
     const validatedItems: Array<{ matchId: number; marketType: string; selection: string; oddsPoints: number }> = [];
 
     for (const item of items) {
-      this.validateMatchForPrediction(item.matchId);
+      await this.validateMatchForPrediction(item.matchId);
       const oddsPoints = this.getMarketOddsPoints(item.marketType, item.selection);
       totalPotentialPoints += oddsPoints;
       validatedItems.push({
@@ -194,33 +221,43 @@ export class PredictionService {
       });
     }
 
-    // Insert the serious set
-    const setRes = run(
-      `INSERT INTO serious_sets (user_id, name, status, potential_points, total_predictions)
-       VALUES (?, ?, 'PENDING', ?, ?)`,
-      [userId, trimmedName, totalPotentialPoints, validatedItems.length]
+    const nowIso = new Date().toISOString();
+    const createdSet = await insertRowWithAutoId<{ id: number }>(
+      'serious_sets',
+      {
+        user_id: userId,
+        name: trimmedName,
+        status: 'PENDING',
+        potential_points: totalPotentialPoints,
+        points_delta: 0,
+        total_predictions: validatedItems.length,
+        correct_predictions: 0,
+        incorrect_predictions: 0,
+        created_at: nowIso,
+      },
+      'id'
     );
 
-    const setId = setRes.lastInsertRowid;
+    const setId = createdSet.id;
 
-    // Insert the predictions linked to this set
     for (const val of validatedItems) {
-      const predRes = run(
-        `INSERT INTO predictions (user_id, match_id, mode, serious_set_id, market_type, selection, odds_points, status, is_verified_account)
-         VALUES (?, ?, 'SERIOUS', ?, ?, ?, ?, 'PENDING', 1)`,
-        [userId, val.matchId, setId, val.marketType, val.selection, val.oddsPoints]
+      await insertRowWithAutoId(
+        'predictions',
+        {
+          user_id: userId,
+          match_id: val.matchId,
+          mode: 'SERIOUS',
+          serious_set_id: setId,
+          market_type: val.marketType,
+          selection: val.selection,
+          odds_points: val.oddsPoints,
+          status: 'PENDING',
+          points_awarded: 0,
+          is_verified_account: true,
+          created_at: nowIso,
+        },
+        'id'
       );
-      syncPredictionToSupabase({
-        id: predRes.lastInsertRowid,
-        user_id: userId,
-        match_id: val.matchId,
-        mode: 'SERIOUS',
-        serious_set_id: setId,
-        market_type: val.marketType,
-        selection: val.selection,
-        odds_points: val.oddsPoints,
-        status: 'PENDING',
-      }).catch(() => {});
     }
 
     return {
@@ -232,70 +269,149 @@ export class PredictionService {
   }
 
   /**
+   * Helper to enrich raw prediction rows with flat match & serious_set fields expected by UI
+   */
+  private static async enrichPredictionRows(
+    preds: any[],
+    options: { includeUsers?: boolean } = {}
+  ): Promise<any[]> {
+    if (preds.length === 0) return [];
+    const client = requireSupabase();
+
+    const matchIds = Array.from(new Set(preds.map((p) => p.match_id).filter(Boolean)));
+    const setIds = Array.from(new Set(preds.map((p) => p.serious_set_id).filter(Boolean)));
+    const userIds = options.includeUsers
+      ? Array.from(new Set(preds.map((p) => p.user_id).filter(Boolean)))
+      : [];
+
+    const [matchesRes, setsRes, usersRes] = await Promise.all([
+      matchIds.length > 0
+        ? client.from('matches').select('*').in('id', matchIds)
+        : Promise.resolve({ data: [], error: null }),
+      setIds.length > 0
+        ? client.from('serious_sets').select('id, name, status, points_delta').in('id', setIds)
+        : Promise.resolve({ data: [], error: null }),
+      userIds.length > 0
+        ? client
+            .from('users')
+            .select('id, username, basic_points, serious_points, basic_streak, serious_streak')
+            .in('id', userIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    assertSupabaseOk(matchesRes.error, 'Fetch matches for predictions');
+    assertSupabaseOk(setsRes.error, 'Fetch serious sets for predictions');
+    assertSupabaseOk(usersRes.error, 'Fetch users for predictions');
+
+    const matchMap = new Map<number, any>((matchesRes.data || []).map((m: any) => [m.id, m]));
+    const setMap = new Map<number, any>((setsRes.data || []).map((s: any) => [s.id, s]));
+    const userMap = new Map<number, any>((usersRes.data || []).map((u: any) => [u.id, u]));
+
+    return preds
+      .map((p) => {
+        const m = matchMap.get(p.match_id);
+        if (!m) return null;
+        const s = p.serious_set_id ? setMap.get(p.serious_set_id) : null;
+        const u = options.includeUsers ? userMap.get(p.user_id) : null;
+
+        return {
+          ...p,
+          ...(u
+            ? {
+                username: u.username,
+                basic_points: u.basic_points,
+                serious_points: u.serious_points,
+                basic_streak: u.basic_streak,
+                serious_streak: u.serious_streak,
+              }
+            : {}),
+          home_team_name: m.home_team_name,
+          home_team_short: m.home_team_short,
+          home_team_crest: m.home_team_crest,
+          away_team_name: m.away_team_name,
+          away_team_short: m.away_team_short,
+          away_team_crest: m.away_team_crest,
+          competition_name: m.competition_name,
+          competition_emblem: m.competition_emblem,
+          match_date: m.utc_date,
+          match_status: m.status,
+          home_score: m.home_score,
+          away_score: m.away_score,
+          home_corners: m.home_corners,
+          away_corners: m.away_corners,
+          set_name: s?.name ?? null,
+          set_status: s?.status ?? null,
+          set_points_delta: s?.points_delta ?? null,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  /**
    * Get all predictions for a user, optionally filtered by mode and status
    */
-  public static getUserPredictions(userId: number, mode?: 'BASIC' | 'SERIOUS', status?: string) {
-    let sql = `
-      SELECT p.*,
-             m.home_team_name, m.home_team_short, m.home_team_crest,
-             m.away_team_name, m.away_team_short, m.away_team_crest,
-             m.competition_name, m.competition_emblem,
-             m.utc_date as match_date, m.status as match_status,
-             m.home_score, m.away_score, m.home_corners, m.away_corners,
-             s.name as set_name, s.status as set_status, s.points_delta as set_points_delta
-      FROM predictions p
-      JOIN matches m ON p.match_id = m.id
-      LEFT JOIN serious_sets s ON p.serious_set_id = s.id
-      WHERE p.user_id = ?
-    `;
-    const params: any[] = [userId];
+  public static async getUserPredictions(userId: number, mode?: 'BASIC' | 'SERIOUS', status?: string) {
+    const client = requireSupabase();
+
+    let query = client.from('predictions').select('*').eq('user_id', userId);
 
     if (mode) {
-      sql += ' AND p.mode = ?';
-      params.push(mode);
+      query = query.eq('mode', mode);
     }
 
     if (status === 'DONE' || status === 'COMPLETED') {
-      sql += " AND p.status IN ('CORRECT', 'INCORRECT') AND m.status = 'FINISHED'";
+      query = query.in('status', ['CORRECT', 'INCORRECT']);
     } else if (status === 'PENDING') {
-      sql += " AND p.status = 'PENDING'";
+      query = query.eq('status', 'PENDING');
     } else if (status === 'CORRECT' || status === 'INCORRECT') {
-      sql += ' AND p.status = ?';
-      params.push(status);
+      query = query.eq('status', status);
     }
 
-    sql += ' ORDER BY COALESCE(p.resolved_at, p.created_at) DESC';
+    const { data, error } = await query.order('created_at', { ascending: false });
+    assertSupabaseOk(error, 'Fetch user predictions');
 
-    return queryAll(sql, params);
+    let enriched = await this.enrichPredictionRows(data || []);
+    if (status === 'DONE' || status === 'COMPLETED') {
+      enriched = enriched.filter((p) => p.match_status === 'FINISHED');
+    }
+
+    enriched.sort((a, b) => {
+      const ta = new Date(a.resolved_at || a.created_at || 0).getTime();
+      const tb = new Date(b.resolved_at || b.created_at || 0).getTime();
+      return tb - ta;
+    });
+
+    return enriched;
   }
 
   /**
    * Get all Serious Sets for a user with their nested predictions
    */
-  public static getUserSeriousSets(userId: number) {
-    const sets = queryAll<any>(
-      `SELECT * FROM serious_sets WHERE user_id = ? ORDER BY created_at DESC`,
-      [userId]
-    );
+  public static async getUserSeriousSets(userId: number) {
+    const client = requireSupabase();
 
+    const setsRes = await client
+      .from('serious_sets')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    assertSupabaseOk(setsRes.error, 'Fetch user serious sets');
+
+    const sets = setsRes.data || [];
     const setIds = sets.map((s) => s.id);
     if (setIds.length === 0) return [];
 
-    const preds = queryAll<any>(
-      `SELECT p.*,
-              m.home_team_name, m.home_team_short, m.home_team_crest,
-              m.away_team_name, m.away_team_short, m.away_team_crest,
-              m.competition_name, m.utc_date as match_date, m.status as match_status,
-              m.home_score, m.away_score, m.home_corners, m.away_corners
-       FROM predictions p
-       JOIN matches m ON p.match_id = m.id
-       WHERE p.serious_set_id IN (${setIds.map(() => '?').join(',')})
-       ORDER BY p.id ASC`,
-      setIds
-    );
+    const predsRes = await client
+      .from('predictions')
+      .select('*')
+      .in('serious_set_id', setIds)
+      .order('id', { ascending: true });
+    assertSupabaseOk(predsRes.error, 'Fetch serious set items');
+
+    const enrichedPreds = await this.enrichPredictionRows(predsRes.data || []);
 
     const predsBySet: Record<number, any[]> = {};
-    for (const p of preds) {
+    for (const p of enrichedPreds) {
       if (!predsBySet[p.serious_set_id]) predsBySet[p.serious_set_id] = [];
       predsBySet[p.serious_set_id].push(p);
     }
@@ -308,67 +424,63 @@ export class PredictionService {
 
   /**
    * Get full public profile and past predictions for a specific user.
-   * Only completed predictions and finalized sets are displayed publicly.
    */
-  public static getUserProfile(userId: number) {
-    const user = queryOne<{
-      id: number;
-      username: string;
-      basic_points: number;
-      serious_points: number;
-      basic_streak: number;
-      basic_best_streak: number;
-      serious_streak: number;
-      serious_best_streak: number;
-      created_at: string;
-    }>(
-      `SELECT id, username, basic_points, serious_points,
-              basic_streak, basic_best_streak, serious_streak, serious_best_streak,
-              created_at
-       FROM users
-       WHERE id = ?`,
-      [userId]
-    );
+  public static async getUserProfile(userId: number) {
+    const client = requireSupabase();
 
+    const userRes = await client
+      .from('users')
+      .select(
+        'id, username, basic_points, serious_points, basic_streak, basic_best_streak, serious_streak, serious_best_streak, created_at'
+      )
+      .eq('id', userId)
+      .maybeSingle();
+    assertSupabaseOk(userRes.error, 'Fetch user profile');
+
+    const user = userRes.data;
     if (!user) {
       throw new Error(`User #${userId} not found`);
     }
 
-    const predictions = this.getUserPredictions(userId, undefined, 'DONE');
-    const seriousSets = this.getUserSeriousSets(userId).filter(
+    const [predictions, allSeriousSets, higherBasicRes, higherSeriousRes] = await Promise.all([
+      this.getUserPredictions(userId, undefined, 'DONE'),
+      this.getUserSeriousSets(userId),
+      client
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .gt('basic_points', user.basic_points),
+      client
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .gt('serious_points', user.serious_points),
+    ]);
+
+    assertSupabaseOk(higherBasicRes.error, 'Compute Basic rank');
+    assertSupabaseOk(higherSeriousRes.error, 'Compute Serious rank');
+
+    const seriousSets = allSeriousSets.filter(
       (s: any) => s.status === 'WON' || s.status === 'LOST'
     );
 
     const correctCount = predictions.filter((p: any) => p.status === 'CORRECT').length;
     const incorrectCount = predictions.filter((p: any) => p.status === 'INCORRECT').length;
-    const pendingCount = 0;
     const totalResolved = correctCount + incorrectCount;
     const winRate = totalResolved > 0 ? Math.round((correctCount / totalResolved) * 100) : 0;
 
     const wonSets = seriousSets.filter((s: any) => s.status === 'WON').length;
     const lostSets = seriousSets.filter((s: any) => s.status === 'LOST').length;
 
-    // Rank in basic and serious leaderboards
-    const basicRankRow = queryOne<{ rank: number }>(
-      `SELECT count(*) + 1 as rank FROM users WHERE basic_points > ?`,
-      [user.basic_points]
-    );
-    const seriousRankRow = queryOne<{ rank: number }>(
-      `SELECT count(*) + 1 as rank FROM users WHERE serious_points > ?`,
-      [user.serious_points]
-    );
-
     return {
       user: {
         ...user,
-        basicRank: basicRankRow?.rank || 1,
-        seriousRank: seriousRankRow?.rank || 1,
+        basicRank: (higherBasicRes.count ?? 0) + 1,
+        seriousRank: (higherSeriousRes.count ?? 0) + 1,
       },
       stats: {
         totalPredictions: predictions.length,
         correctCount,
         incorrectCount,
-        pendingCount,
+        pendingCount: 0,
         winRate,
         totalSets: seriousSets.length,
         wonSets,
@@ -380,61 +492,58 @@ export class PredictionService {
   }
 
   /**
-   * Get community feed of other users' predictions across all matches.
-   * Strictly filters for predictions that are DONE (from finished matches). No pending results.
+   * Get community feed of other users' completed predictions across finished matches.
    */
-  public static getCommunityPredictions(mode?: 'BASIC' | 'SERIOUS', status?: string, limit: number = 60) {
-    let sql = `
-      SELECT p.*,
-             u.username, u.basic_points, u.serious_points, u.basic_streak, u.serious_streak,
-             m.home_team_name, m.home_team_short, m.home_team_crest,
-             m.away_team_name, m.away_team_short, m.away_team_crest,
-             m.competition_name, m.competition_emblem,
-             m.utc_date as match_date, m.status as match_status,
-             m.home_score, m.away_score, m.home_corners, m.away_corners,
-             s.name as set_name, s.status as set_status, s.points_delta as set_points_delta
-      FROM predictions p
-      JOIN users u ON p.user_id = u.id
-      JOIN matches m ON p.match_id = m.id
-      LEFT JOIN serious_sets s ON p.serious_set_id = s.id
-      WHERE p.status IN ('CORRECT', 'INCORRECT')
-        AND m.status = 'FINISHED'
-    `;
-    const params: any[] = [];
+  public static async getCommunityPredictions(
+    mode?: 'BASIC' | 'SERIOUS',
+    status?: string,
+    limit: number = 60
+  ) {
+    const client = requireSupabase();
 
-    if (mode) {
-      sql += ' AND p.mode = ?';
-      params.push(mode);
-    }
+    let query = client.from('predictions').select('*');
 
     if (status === 'CORRECT' || status === 'INCORRECT') {
-      sql += ' AND p.status = ?';
-      params.push(status);
+      query = query.eq('status', status);
+    } else {
+      query = query.in('status', ['CORRECT', 'INCORRECT']);
     }
 
-    sql += ' ORDER BY COALESCE(p.resolved_at, m.utc_date) DESC LIMIT ?';
-    params.push(limit);
+    if (mode) {
+      query = query.eq('mode', mode);
+    }
 
-    return queryAll(sql, params);
+    const { data, error } = await query
+      .order('resolved_at', { ascending: false })
+      .limit(Math.max(limit * 2, 120));
+    assertSupabaseOk(error, 'Fetch community predictions');
+
+    const enriched = await this.enrichPredictionRows(data || [], { includeUsers: true });
+    return enriched
+      .filter((p) => p.match_status === 'FINISHED' && Boolean(p.username))
+      .sort((a, b) => {
+        const ta = new Date(a.resolved_at || a.match_date || 0).getTime();
+        const tb = new Date(b.resolved_at || b.match_date || 0).getTime();
+        return tb - ta;
+      })
+      .slice(0, limit);
   }
 
   /**
    * Get all completed predictions made on a specific finished match.
    */
-  public static getMatchCommunityPredictions(matchId: number) {
-    return queryAll(
-      `SELECT p.*,
-              u.username, u.basic_points, u.serious_points,
-              s.name as set_name, s.status as set_status
-       FROM predictions p
-       JOIN users u ON p.user_id = u.id
-       JOIN matches m ON p.match_id = m.id
-       LEFT JOIN serious_sets s ON p.serious_set_id = s.id
-       WHERE p.match_id = ?
-         AND p.status IN ('CORRECT', 'INCORRECT')
-         AND m.status = 'FINISHED'
-       ORDER BY p.resolved_at DESC`,
-      [matchId]
-    );
+  public static async getMatchCommunityPredictions(matchId: number) {
+    const client = requireSupabase();
+
+    const { data, error } = await client
+      .from('predictions')
+      .select('*')
+      .eq('match_id', matchId)
+      .in('status', ['CORRECT', 'INCORRECT'])
+      .order('resolved_at', { ascending: false });
+    assertSupabaseOk(error, 'Fetch match community predictions');
+
+    const enriched = await this.enrichPredictionRows(data || [], { includeUsers: true });
+    return enriched.filter((p) => p.match_status === 'FINISHED' && Boolean(p.username));
   }
 }

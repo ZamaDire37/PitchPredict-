@@ -60,8 +60,11 @@ const MainApp: React.FC = () => {
         clientTodayYmd
       );
       setMatches(res.matches);
-    } catch (err) {
+      setSyncError(null);
+    } catch (err: any) {
       console.error('Error fetching matches:', err);
+      setMatches([]);
+      setSyncError(err.message || 'Database unavailable: Unable to load matches from Supabase.');
     } finally {
       setLoadingMatches(false);
     }

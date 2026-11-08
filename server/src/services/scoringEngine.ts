@@ -1,4 +1,8 @@
-import { db, queryAll, queryOne, run } from '../db/database.js';
+import {
+  requireSupabase,
+  assertSupabaseOk,
+  insertRowWithAutoId,
+} from '../db/supabaseClient.js';
 import { getMarketDefinition, MatchEvaluationData } from './marketRegistry.js';
 
 export interface MatchResult {
@@ -7,11 +11,11 @@ export interface MatchResult {
   home_team_short: string;
   away_team_name: string;
   away_team_short: string;
-  home_score: number;
-  away_score: number;
-  home_corners: number;
-  away_corners: number;
-  winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW';
+  home_score: number | null;
+  away_score: number | null;
+  home_corners: number | null;
+  away_corners: number | null;
+  winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null;
   status: string;
 }
 
@@ -97,26 +101,34 @@ export function evaluatePrediction(
 }
 
 /**
- * Grades all pending predictions for a finished match.
+ * Grades all pending predictions for a finished match directly in Supabase.
  */
-export function gradeMatch(matchId: number) {
-  const match = queryOne<MatchResult>(
-    'SELECT * FROM matches WHERE id = ?',
-    [matchId]
-  );
+export async function gradeMatch(matchId: number) {
+  const client = requireSupabase();
 
+  const matchRes = await client
+    .from('matches')
+    .select('*')
+    .eq('id', matchId)
+    .maybeSingle();
+  assertSupabaseOk(matchRes.error, 'Fetch match for grading');
+
+  const match = matchRes.data as MatchResult | null;
   if (!match || match.status !== 'FINISHED' || match.home_score === null || match.away_score === null) {
     return { graded: 0, message: 'Match not finished or scores not set' };
   }
 
-  // Get all pending predictions for this match
-  const predictions = queryAll<PredictionRow>(
-    "SELECT * FROM predictions WHERE match_id = ? AND status = 'PENDING'",
-    [matchId]
-  );
+  const predsRes = await client
+    .from('predictions')
+    .select('*')
+    .eq('match_id', matchId)
+    .eq('status', 'PENDING');
+  assertSupabaseOk(predsRes.error, 'Fetch pending predictions for grading');
 
+  const predictions = (predsRes.data || []) as PredictionRow[];
   const evaluatedSets = new Set<number>();
   let basicGraded = 0;
+  const nowIso = new Date().toISOString();
 
   for (const pred of predictions) {
     const { isCorrect, actualResultStr } = evaluatePrediction(
@@ -134,29 +146,33 @@ export function gradeMatch(matchId: number) {
     const newStatus = isCorrect ? 'CORRECT' : 'INCORRECT';
     const pointsAwarded = isCorrect ? pred.odds_points : 0;
 
-    // Update the prediction record
-    run(
-      `UPDATE predictions
-       SET status = ?, actual_result = ?, points_awarded = ?, resolved_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [newStatus, actualResultStr, pointsAwarded, pred.id]
-    );
+    const updPredRes = await client
+      .from('predictions')
+      .update({
+        status: newStatus,
+        actual_result: actualResultStr,
+        points_awarded: pointsAwarded,
+        resolved_at: nowIso,
+      })
+      .eq('id', pred.id);
+    assertSupabaseOk(updPredRes.error, 'Update graded prediction');
 
     if (pred.mode === 'BASIC') {
       basicGraded++;
-      // Process Basic Mode user points immediately
-      handleBasicPredictionResult(pred, isCorrect, pointsAwarded, match);
+      await handleBasicPredictionResult(pred, isCorrect, pointsAwarded, match);
     } else if (pred.mode === 'SERIOUS' && pred.serious_set_id) {
       evaluatedSets.add(pred.serious_set_id);
     }
   }
 
-  // Mark match as graded
-  run('UPDATE matches SET is_graded = 1 WHERE id = ?', [matchId]);
+  const markMatchRes = await client
+    .from('matches')
+    .update({ is_graded: 1, updated_at: nowIso })
+    .eq('id', matchId);
+  assertSupabaseOk(markMatchRes.error, 'Mark match as graded');
 
-  // Check any Serious Sets affected by these predictions
   for (const setId of evaluatedSets) {
-    evaluateSeriousSet(setId);
+    await evaluateSeriousSet(setId);
   }
 
   return {
@@ -167,171 +183,196 @@ export function gradeMatch(matchId: number) {
 }
 
 /**
- * Handles points and streak changes for a Basic Mode prediction.
+ * Handles points and streak changes for a Basic Mode prediction in Supabase.
  */
-function handleBasicPredictionResult(
+async function handleBasicPredictionResult(
   pred: PredictionRow,
   isCorrect: boolean,
   pointsAwarded: number,
   match: MatchResult
 ) {
-  const user = queryOne<{ basic_points: number; basic_streak: number; basic_best_streak: number }>(
-    'SELECT basic_points, basic_streak, basic_best_streak FROM users WHERE id = ?',
-    [pred.user_id]
-  );
+  const client = requireSupabase();
 
+  const userRes = await client
+    .from('users')
+    .select('basic_points, basic_streak, basic_best_streak')
+    .eq('id', pred.user_id)
+    .maybeSingle();
+  assertSupabaseOk(userRes.error, 'Fetch user for Basic grading');
+
+  const user = userRes.data;
   if (!user) return;
+
+  const nowIso = new Date().toISOString();
 
   if (isCorrect) {
     const newBalance = user.basic_points + pointsAwarded;
     const newStreak = user.basic_streak + 1;
     const newBest = Math.max(user.basic_best_streak, newStreak);
 
-    run(
-      'UPDATE users SET basic_points = ?, basic_streak = ?, basic_best_streak = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [newBalance, newStreak, newBest, pred.user_id]
-    );
+    const updUser = await client
+      .from('users')
+      .update({
+        basic_points: newBalance,
+        basic_streak: newStreak,
+        basic_best_streak: newBest,
+        updated_at: nowIso,
+      })
+      .eq('id', pred.user_id);
+    assertSupabaseOk(updUser.error, 'Update user Basic points');
 
-    // Record in points history ledger
-    run(
-      `INSERT INTO points_history (user_id, mode, delta, balance_after, reason, prediction_id)
-       VALUES (?, 'BASIC', ?, ?, ?, ?)`,
-      [
-        pred.user_id,
-        pointsAwarded,
-        newBalance,
-        `Won: ${match.home_team_short || match.home_team_name} vs ${match.away_team_short || match.away_team_name} (${pred.market_type} - ${pred.selection})`,
-        pred.id,
-      ]
-    );
+    await insertRowWithAutoId('points_history', {
+      user_id: pred.user_id,
+      mode: 'BASIC',
+      delta: pointsAwarded,
+      balance_after: newBalance,
+      reason: `Won: ${match.home_team_short || match.home_team_name} vs ${match.away_team_short || match.away_team_name} (${pred.market_type} - ${pred.selection})`,
+      prediction_id: pred.id,
+      created_at: nowIso,
+    });
   } else {
     // Incorrect in Basic Mode: 0 points awarded, NO penalty. Streak resets.
-    run(
-      'UPDATE users SET basic_streak = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [pred.user_id]
-    );
+    const updUser = await client
+      .from('users')
+      .update({
+        basic_streak: 0,
+        updated_at: nowIso,
+      })
+      .eq('id', pred.user_id);
+    assertSupabaseOk(updUser.error, 'Reset user Basic streak');
 
-    // Record zero change in history for full visibility if desired
-    run(
-      `INSERT INTO points_history (user_id, mode, delta, balance_after, reason, prediction_id)
-       VALUES (?, 'BASIC', 0, ?, ?, ?)`,
-      [
-        pred.user_id,
-        user.basic_points,
-        `Missed: ${match.home_team_short || match.home_team_name} vs ${match.away_team_short || match.away_team_name} (${pred.market_type} - ${pred.selection}) [0 pts]`,
-        pred.id,
-      ]
-    );
+    await insertRowWithAutoId('points_history', {
+      user_id: pred.user_id,
+      mode: 'BASIC',
+      delta: 0,
+      balance_after: user.basic_points,
+      reason: `Missed: ${match.home_team_short || match.home_team_name} vs ${match.away_team_short || match.away_team_name} (${pred.market_type} - ${pred.selection}) [0 pts]`,
+      prediction_id: pred.id,
+      created_at: nowIso,
+    });
   }
 }
 
 /**
- * Checks if a Serious Set is ready for resolution.
+ * Checks if a Serious Set is ready for resolution in Supabase.
  * If every prediction is finished:
  *  - If all correct -> award total points
  *  - If any wrong -> deduct 10 points ONCE for the entire set
  */
-export function evaluateSeriousSet(setId: number) {
-  const set = queryOne<{
-    id: number;
-    user_id: number;
-    name: string;
-    status: string;
-    potential_points: number;
-    total_predictions: number;
-  }>('SELECT * FROM serious_sets WHERE id = ?', [setId]);
+export async function evaluateSeriousSet(setId: number) {
+  const client = requireSupabase();
 
+  const setRes = await client
+    .from('serious_sets')
+    .select('id, user_id, name, status, potential_points, total_predictions')
+    .eq('id', setId)
+    .maybeSingle();
+  assertSupabaseOk(setRes.error, 'Fetch serious set for evaluation');
+
+  const set = setRes.data;
   if (!set || set.status !== 'PENDING') return;
 
-  const preds = queryAll<{
-    id: number;
-    status: string;
-    points_awarded: number;
-    odds_points: number;
-  }>('SELECT id, status, points_awarded, odds_points FROM predictions WHERE serious_set_id = ?', [setId]);
+  const predsRes = await client
+    .from('predictions')
+    .select('id, status, points_awarded, odds_points')
+    .eq('serious_set_id', setId);
+  assertSupabaseOk(predsRes.error, 'Fetch serious set predictions');
 
+  const preds = predsRes.data || [];
   if (preds.length === 0) return;
 
   const pendingCount = preds.filter((p) => p.status === 'PENDING').length;
   const incorrectCount = preds.filter((p) => p.status === 'INCORRECT').length;
   const correctCount = preds.filter((p) => p.status === 'CORRECT').length;
 
-  // If ANY prediction has already failed, or all predictions are resolved:
-  // Note: If at least one has failed, the set is irrevocably LOST!
-  // But let's check if we resolve early or wait until all games in set finish.
-  // Requirement: "If at least one prediction in a set is wrong, deduct 10 points once for that entire set, regardless of how many predictions were wrong."
-  // Usually resolved when all matches in the set finish, or as soon as a failure is guaranteed. Waiting until all matches in the set finish gives a clean, complete scoreline.
-  if (pendingCount > 0 && incorrectCount === 0) {
-    // Set is still pending (no errors yet, waiting for remaining matches)
+  if (pendingCount > 0) {
     return;
   }
 
-  // If all are finished, or if one failed and we resolve the set:
-  if (pendingCount === 0) {
-    const user = queryOne<{ serious_points: number; serious_streak: number; serious_best_streak: number }>(
-      'SELECT serious_points, serious_streak, serious_best_streak FROM users WHERE id = ?',
-      [set.user_id]
-    );
-    if (!user) return;
+  const userRes = await client
+    .from('users')
+    .select('serious_points, serious_streak, serious_best_streak')
+    .eq('id', set.user_id)
+    .maybeSingle();
+  assertSupabaseOk(userRes.error, 'Fetch user for Serious Set grading');
 
-    if (incorrectCount === 0) {
-      // WON THE SET!
-      const totalPointsWon = preds.reduce((acc, p) => acc + p.odds_points, 0);
-      const newBalance = user.serious_points + totalPointsWon;
-      const newStreak = user.serious_streak + 1;
-      const newBest = Math.max(user.serious_best_streak, newStreak);
+  const user = userRes.data;
+  if (!user) return;
 
-      run(
-        `UPDATE serious_sets
-         SET status = 'WON', points_delta = ?, correct_predictions = ?, incorrect_predictions = 0, resolved_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [totalPointsWon, correctCount, setId]
-      );
+  const nowIso = new Date().toISOString();
 
-      run(
-        'UPDATE users SET serious_points = ?, serious_streak = ?, serious_best_streak = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [newBalance, newStreak, newBest, set.user_id]
-      );
+  if (incorrectCount === 0) {
+    const totalPointsWon = preds.reduce((acc, p) => acc + p.odds_points, 0);
+    const newBalance = user.serious_points + totalPointsWon;
+    const newStreak = user.serious_streak + 1;
+    const newBest = Math.max(user.serious_best_streak, newStreak);
 
-      run(
-        `INSERT INTO points_history (user_id, mode, delta, balance_after, reason, serious_set_id)
-         VALUES (?, 'SERIOUS', ?, ?, ?, ?)`,
-        [
-          set.user_id,
-          totalPointsWon,
-          newBalance,
-          `Set Won: "${set.name}" (${correctCount}/${preds.length} correct) [Bonus: +${totalPointsWon} pts]`,
-          setId,
-        ]
-      );
-    } else {
-      // LOST THE SET: Deduct 10 points ONCE for the entire set
-      const penalty = -10;
-      const newBalance = user.serious_points + penalty; // e.g. 100 - 10 = 90
+    const updSet = await client
+      .from('serious_sets')
+      .update({
+        status: 'WON',
+        points_delta: totalPointsWon,
+        correct_predictions: correctCount,
+        incorrect_predictions: 0,
+        resolved_at: nowIso,
+      })
+      .eq('id', setId);
+    assertSupabaseOk(updSet.error, 'Update won serious set');
 
-      run(
-        `UPDATE serious_sets
-         SET status = 'LOST', points_delta = ?, correct_predictions = ?, incorrect_predictions = ?, resolved_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [penalty, correctCount, incorrectCount, setId]
-      );
+    const updUser = await client
+      .from('users')
+      .update({
+        serious_points: newBalance,
+        serious_streak: newStreak,
+        serious_best_streak: newBest,
+        updated_at: nowIso,
+      })
+      .eq('id', set.user_id);
+    assertSupabaseOk(updUser.error, 'Update user serious points on win');
 
-      run(
-        'UPDATE users SET serious_points = ?, serious_streak = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [newBalance, set.user_id]
-      );
+    await insertRowWithAutoId('points_history', {
+      user_id: set.user_id,
+      mode: 'SERIOUS',
+      delta: totalPointsWon,
+      balance_after: newBalance,
+      reason: `Set Won: "${set.name}" (${correctCount}/${preds.length} correct) [Bonus: +${totalPointsWon} pts]`,
+      serious_set_id: setId,
+      created_at: nowIso,
+    });
+  } else {
+    const penalty = -10;
+    const newBalance = user.serious_points + penalty;
 
-      run(
-        `INSERT INTO points_history (user_id, mode, delta, balance_after, reason, serious_set_id)
-         VALUES (?, 'SERIOUS', ?, ?, ?, ?)`,
-        [
-          set.user_id,
-          penalty,
-          newBalance,
-          `Set Failed: "${set.name}" (${incorrectCount} wrong) [-10 pts penalty]`,
-          setId,
-        ]
-      );
-    }
+    const updSet = await client
+      .from('serious_sets')
+      .update({
+        status: 'LOST',
+        points_delta: penalty,
+        correct_predictions: correctCount,
+        incorrect_predictions: incorrectCount,
+        resolved_at: nowIso,
+      })
+      .eq('id', setId);
+    assertSupabaseOk(updSet.error, 'Update lost serious set');
+
+    const updUser = await client
+      .from('users')
+      .update({
+        serious_points: newBalance,
+        serious_streak: 0,
+        updated_at: nowIso,
+      })
+      .eq('id', set.user_id);
+    assertSupabaseOk(updUser.error, 'Update user serious points on loss');
+
+    await insertRowWithAutoId('points_history', {
+      user_id: set.user_id,
+      mode: 'SERIOUS',
+      delta: penalty,
+      balance_after: newBalance,
+      reason: `Set Failed: "${set.name}" (${incorrectCount} wrong) [-10 pts penalty]`,
+      serious_set_id: setId,
+      created_at: nowIso,
+    });
   }
 }

@@ -208,12 +208,8 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ onClose }) => {
     }
   };
 
-  const supabaseUrl = dbStatus?.url || 'https://yscanokgahssqqstwgmc.supabase.co';
-  const projectRef = supabaseUrl.includes('.supabase.co')
-    ? supabaseUrl.replace(/^https?:\/\//, '').replace(/\.supabase\.co.*$/, '')
-    : 'yscanokgahssqqstwgmc';
-
-  const sqlEditorUrl = `https://supabase.com/dashboard/project/${projectRef}/sql/new`;
+  const isConnected = Boolean(dbStatus?.connected);
+  const sqlEditorUrl = 'https://supabase.com/dashboard/project/_/sql/new';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-hidden">
@@ -229,13 +225,23 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ onClose }) => {
                 <h2 className="text-sm sm:text-lg font-black text-white">
                   Database & Supabase Center
                 </h2>
-                <span className="px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>Connected</span>
+                <span
+                  className={`px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded text-[9px] sm:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border ${
+                    isConnected
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-red-500/20 text-red-300 border-red-500/40'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'
+                    }`}
+                  ></span>
+                  <span>{isConnected ? 'Connected' : 'Unavailable'}</span>
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-400">
-                Hybrid PostgreSQL Cloud Architecture
+                Supabase Free PostgreSQL — Exclusive Primary Database
               </p>
             </div>
           </div>
@@ -254,11 +260,11 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ onClose }) => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
               <div className="flex items-center gap-2 text-white font-bold text-sm">
                 <Cloud className="w-4 h-4 text-emerald-400" />
-                <span>Supabase Cloud Project</span>
+                <span>Supabase Cloud PostgreSQL</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-slate-400 font-mono">
-                  {supabaseUrl}
+                  Server-side Environment Config
                 </span>
                 <button
                   onClick={fetchStatus}
@@ -274,30 +280,38 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ onClose }) => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
                 <span className="text-[10px] text-slate-400 block font-semibold">Connection Status</span>
-                <span className="text-emerald-400 font-bold font-mono text-xs flex items-center gap-1 mt-0.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>CONNECTED</span>
+                <span
+                  className={`font-bold font-mono text-xs flex items-center gap-1 mt-0.5 ${
+                    isConnected ? 'text-emerald-400' : 'text-red-400'
+                  }`}
+                >
+                  {isConnected ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                  )}
+                  <span>{dbStatus?.status || (loading ? 'CHECKING' : 'UNAVAILABLE')}</span>
                 </span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                <span className="text-[10px] text-slate-400 block font-semibold">Local Verified Matches</span>
+                <span className="text-[10px] text-slate-400 block font-semibold">Registered Users</span>
                 <span className="text-white font-bold font-mono text-xs mt-0.5 block">
-                  1,954 Matches
+                  {dbStatus?.userCount !== undefined ? `${dbStatus.userCount} Users` : '—'}
                 </span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                <span className="text-[10px] text-slate-400 block font-semibold">Cloud Table Sync</span>
+                <span className="text-[10px] text-slate-400 block font-semibold">Cloud Matches</span>
                 <span className="text-cyan-400 font-bold font-mono text-xs mt-0.5 block">
-                  {dbStatus?.matchCount !== undefined ? `${dbStatus.matchCount} Matches in Cloud` : 'Active'}
+                  {dbStatus?.matchCount !== undefined ? `${dbStatus.matchCount} Matches` : '—'}
                 </span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                <span className="text-[10px] text-slate-400 block font-semibold">Publishable Key</span>
+                <span className="text-[10px] text-slate-400 block font-semibold">Credentials</span>
                 <span className="text-slate-300 font-bold font-mono text-xs mt-0.5 block truncate">
-                  sb_publishable_...
+                  Server Env Only
                 </span>
               </div>
             </div>
@@ -455,7 +469,7 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({ onClose }) => {
         <div className="shrink-0 p-3.5 sm:p-4 border-t border-slate-800 bg-slate-950 flex flex-col sm:flex-row items-center justify-between gap-2.5 pb-safe">
           <div className="text-[11px] text-slate-400 flex items-center gap-1.5 text-center sm:text-left">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Hybrid: High-speed SQLite cache + Supabase Cloud PostgreSQL</span>
+            <span>Exclusive Cloud Storage: Supabase Free PostgreSQL (Zero Local SQLite)</span>
           </div>
           <button
             onClick={onClose}

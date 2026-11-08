@@ -28,10 +28,4 @@ ios/App/build/
 ios/App/.build/
 
 .gradle_home/
-nudge-beep/.gradle/
-nudge-beep/build/
-nudge-beep/app/build/
-nudge-beep/android-sdk/
-nudge-beep/local.properties
-
 

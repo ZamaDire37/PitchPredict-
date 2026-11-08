@@ -1,36 +1,28 @@
-import { db } from './database.js';
+import { requireSupabase, assertSupabaseOk } from './supabaseClient.js';
 
-export function runFullCleanup() {
-  // 1. Purge any synthetic, test, or mock matches
-  db.exec(`
-    DELETE FROM matches 
-    WHERE (external_id >= 501000 AND external_id < 600000)
-       OR home_team_name LIKE 'Team %'
-       OR home_team_name LIKE 'Test %'
-       OR home_team_name LIKE '%Mock%'
-       OR home_team_name = 'Live Home'
-       OR away_team_name LIKE 'Team %'
-       OR away_team_name LIKE 'Test %'
-       OR away_team_name LIKE '%Mock%';
+export async function runSafeTestCleanup() {
+  const client = requireSupabase();
 
-    DELETE FROM predictions WHERE match_id NOT IN (SELECT id FROM matches);
-  `);
+  // Only remove synthetic test fixtures and @test.com automated test accounts;
+  // NEVER delete real users, real predictions, serious sets, or points history.
+  const delMatches = await client
+    .from('matches')
+    .delete()
+    .or('home_team_name.like.Test Team%,home_team_name.like.Team %,home_team_name.eq.Live Home');
+  assertSupabaseOk(delMatches.error, 'Clean test matches');
 
-  // 2. Clear all mock/test predictions, serious sets, and point history
-  db.exec(`
-    DELETE FROM predictions;
-    DELETE FROM serious_sets;
-    DELETE FROM points_history;
-    UPDATE users SET 
-      basic_points = 0,
-      serious_points = 0,
-      basic_streak = 0,
-      basic_best_streak = 0,
-      serious_streak = 0,
-      serious_best_streak = 0;
-  `);
+  const delTemplate = await client
+    .from('matches')
+    .delete()
+    .gte('external_id', 501000)
+    .lt('external_id', 600000);
+  assertSupabaseOk(delTemplate.error, 'Clean synthetic template matches');
 
-  console.log('Test and mock fixtures, predictions, and scores cleaned up successfully.');
+  const delTestUsers = await client
+    .from('users')
+    .delete()
+    .like('email', '%@test.com');
+  assertSupabaseOk(delTestUsers.error, 'Clean automated @test.com users');
+
+  console.log('Synthetic test fixtures and @test.com accounts cleaned safely (real users & predictions untouched).');
 }
-
-runFullCleanup();

@@ -42,18 +42,24 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
   }>({});
   const [hotStreakers, setHotStreakers] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
       setLoading(true);
+      setError(null);
       try {
         const res = await api.getLeaderboard(activeMode, activeSection);
         setLeaderboard(res.leaderboard || []);
         setSpotlights(res.spotlights || {});
         setHotStreakers(res.hotStreakers || []);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching leaderboard:', err);
+        setLeaderboard([]);
+        setSpotlights({});
+        setHotStreakers([]);
+        setError(err.message || 'Database unavailable: Unable to fetch leaderboard from Supabase.');
       } finally {
         setLoading(false);
       }
@@ -108,6 +114,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ onOpenAuth }) 
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-2xl bg-red-950/50 border border-red-500/40 text-red-200 text-xs flex items-start gap-3">
+          <div className="font-bold text-red-400">Database Error:</div>
+          <div>{error}</div>
+        </div>
+      )}
 
       {!isAuthenticated && (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-900/90 border border-emerald-500/30 shadow-lg shadow-emerald-950/20">

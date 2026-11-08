@@ -3,21 +3,20 @@ import { enrichAllMatchesInDatabase } from './enrichMatches.js';
 import { RealFootballApiService } from '../services/realFootballApi.js';
 
 async function seed() {
-  console.log('--- Initializing Database Schema ---');
-  initDatabase();
+  console.log('--- Verifying Supabase PostgreSQL Connection ---');
+  await initDatabase();
 
-  console.log('--- Purging Mock Fixtures & Enriching Matches ---');
-  enrichAllMatchesInDatabase();
+  console.log('--- Purging Mock Fixtures & Enriching Matches in Supabase ---');
+  await enrichAllMatchesInDatabase();
 
-  console.log('--- Syncing Real Matches from External APIs ---');
-  try {
-    const res = await RealFootballApiService.syncRealMatches();
-    console.log(`[Seed Sync] ${res.message}`);
-  } catch (err: any) {
-    console.warn(`[Seed Sync Error] ${err.message}`);
-  }
+  console.log('--- Syncing Real Matches from External APIs into Supabase ---');
+  const res = await RealFootballApiService.syncRealMatches();
+  console.log(`[Seed Sync] ${res.message}`);
 
-  console.log('--- Database Initialization Complete (Zero Mock Data) ---');
+  console.log('--- Supabase Initialization Complete ---');
 }
 
-seed().catch(console.error);
+seed().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

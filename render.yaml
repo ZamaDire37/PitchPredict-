@@ -5,9 +5,15 @@ services:
     plan: free
     region: oregon
     buildCommand: npm run build
-    startCommand: node --experimental-sqlite server/dist/index.js
+    startCommand: node server/dist/index.js
     envVars:
       - key: NODE_VERSION
         value: 22.14.0
       - key: JWT_SECRET
         generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false

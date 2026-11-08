@@ -1,42 +1,101 @@
 import { Router } from 'express';
-import { queryAll } from '../db/database.js';
+import {
+  fetchAllRows,
+  sendRouteError,
+} from '../db/supabaseClient.js';
 
 const router = Router();
 
-// GET /api/leaderboard/basic - Leaderboard for Basic Mode with Section Filtering, Weekly Ranking & Streaks
-router.get('/basic', (req, res) => {
+// GET /api/leaderboard/basic - Leaderboard for Basic Mode directly from Supabase
+router.get('/basic', async (req, res) => {
   try {
     const section = (req.query.section as string) || 'points';
+    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const sevenDaysAgoMs = Date.parse(sevenDaysAgoIso);
 
-    const rawLeaders = queryAll<{
-      id: number;
-      username: string;
-      basic_points: number;
-      basic_streak: number;
-      basic_best_streak: number;
-      correct_count: number;
-      incorrect_count: number;
-      pending_count: number;
-      weekly_history_points: number;
-      weekly_preds_points: number;
-    }>(`
-      SELECT u.id, u.username, u.basic_points, u.basic_streak, u.basic_best_streak,
-             (SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id AND p.mode = 'BASIC' AND p.status = 'CORRECT') as correct_count,
-             (SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id AND p.mode = 'BASIC' AND p.status = 'INCORRECT') as incorrect_count,
-             (SELECT COUNT(*) FROM predictions p WHERE p.user_id = u.id AND p.mode = 'BASIC' AND p.status = 'PENDING') as pending_count,
-             (SELECT COALESCE(SUM(delta), 0) FROM points_history ph WHERE ph.user_id = u.id AND ph.mode = 'BASIC' AND ph.delta > 0 AND ph.created_at >= datetime('now', '-7 days')) as weekly_history_points,
-             (SELECT COALESCE(SUM(points_awarded), 0) FROM predictions pr WHERE pr.user_id = u.id AND pr.mode = 'BASIC' AND pr.status = 'CORRECT' AND (pr.resolved_at >= datetime('now', '-7 days') OR pr.created_at >= datetime('now', '-7 days'))) as weekly_preds_points
-      FROM users u
-    `);
+    const [users, basicPreds, basicHistory] = await Promise.all([
+      fetchAllRows<{
+        id: number;
+        username: string;
+        basic_points: number;
+        basic_streak: number;
+        basic_best_streak: number;
+      }>(
+        (c) => c.from('users').select('id, username, basic_points, basic_streak, basic_best_streak'),
+        'Fetch users for Basic leaderboard'
+      ),
+      fetchAllRows<{
+        user_id: number;
+        status: string;
+        points_awarded: number;
+        created_at: string | null;
+        resolved_at: string | null;
+      }>(
+        (c) =>
+          c
+            .from('predictions')
+            .select('user_id, status, points_awarded, created_at, resolved_at')
+            .eq('mode', 'BASIC'),
+        'Fetch Basic predictions for leaderboard'
+      ),
+      fetchAllRows<{
+        user_id: number;
+        delta: number;
+        created_at: string;
+      }>(
+        (c) =>
+          c
+            .from('points_history')
+            .select('user_id, delta, created_at')
+            .eq('mode', 'BASIC')
+            .gt('delta', 0)
+            .gte('created_at', sevenDaysAgoIso),
+        'Fetch weekly Basic points history'
+      ),
+    ]);
 
-    const enriched = rawLeaders.map((u) => {
-      const correct = u.correct_count || 0;
-      const incorrect = u.incorrect_count || 0;
+    const predStats = new Map<
+      number,
+      { correct: number; incorrect: number; pending: number; weeklyPredsPoints: number }
+    >();
+    for (const p of basicPreds) {
+      let st = predStats.get(p.user_id);
+      if (!st) {
+        st = { correct: 0, incorrect: 0, pending: 0, weeklyPredsPoints: 0 };
+        predStats.set(p.user_id, st);
+      }
+      if (p.status === 'CORRECT') {
+        st.correct++;
+        const resolvedMs = p.resolved_at ? Date.parse(p.resolved_at) : 0;
+        const createdMs = p.created_at ? Date.parse(p.created_at) : 0;
+        if (resolvedMs >= sevenDaysAgoMs || createdMs >= sevenDaysAgoMs) {
+          st.weeklyPredsPoints += p.points_awarded || 0;
+        }
+      } else if (p.status === 'INCORRECT') {
+        st.incorrect++;
+      } else if (p.status === 'PENDING') {
+        st.pending++;
+      }
+    }
+
+    const weeklyHistByUser = new Map<number, number>();
+    for (const h of basicHistory) {
+      weeklyHistByUser.set(h.user_id, (weeklyHistByUser.get(h.user_id) || 0) + (h.delta || 0));
+    }
+
+    const enriched = users.map((u) => {
+      const st = predStats.get(u.id);
+      const correct = st?.correct || 0;
+      const incorrect = st?.incorrect || 0;
+      const pendingCount = st?.pending || 0;
       const totalGraded = correct + incorrect;
       const accuracy = totalGraded > 0 ? Math.round((correct / totalGraded) * 100) : 0;
       const streak = u.basic_streak || 0;
       const bestStreak = u.basic_best_streak || 0;
-      const weeklyPoints = Math.max(u.weekly_history_points || 0, u.weekly_preds_points || 0);
+      const weeklyPoints = Math.max(
+        weeklyHistByUser.get(u.id) || 0,
+        st?.weeklyPredsPoints || 0
+      );
 
       let streakTier: 'BLAZING' | 'HOT' | 'WARMING' | 'COLD' = 'COLD';
       if (streak >= 5) streakTier = 'BLAZING';
@@ -52,7 +111,7 @@ router.get('/basic', (req, res) => {
         best_streak: bestStreak,
         correct_count: correct,
         incorrect_count: incorrect,
-        pending_count: u.pending_count || 0,
+        pending_count: pendingCount,
         total_graded: totalGraded,
         accuracy,
         is_on_fire: streak >= 2,
@@ -63,34 +122,37 @@ router.get('/basic', (req, res) => {
       };
     });
 
-    // Compute Hall of Fame Spotlights
-    const topWeekly = enriched.slice().sort((a, b) => b.weekly_points - a.weekly_points || b.points - a.points)[0] || null;
+    const topWeekly =
+      enriched.slice().sort((a, b) => b.weekly_points - a.weekly_points || b.points - a.points)[0] ||
+      null;
     const topPoints = enriched.slice().sort((a, b) => b.points - a.points)[0] || null;
     const hottestStreak =
-      enriched.slice().sort((a, b) => b.streak - a.streak || b.best_streak - a.best_streak || b.points - a.points)[0] || null;
+      enriched
+        .slice()
+        .sort((a, b) => b.streak - a.streak || b.best_streak - a.best_streak || b.points - a.points)[0] ||
+      null;
     const bestStreakRecord =
-      enriched.slice().sort((a, b) => b.best_streak - a.best_streak || b.streak - a.streak)[0] || null;
+      enriched.slice().sort((a, b) => b.best_streak - a.best_streak || b.streak - a.streak)[0] ||
+      null;
     const highestAccuracy =
       enriched
         .filter((u) => u.total_graded >= 1)
-        .sort((a, b) => b.accuracy - a.accuracy || b.correct_count - a.correct_count || b.points - a.points)[0] || null;
+        .sort((a, b) => b.accuracy - a.accuracy || b.correct_count - a.correct_count || b.points - a.points)[0] ||
+      null;
     const mostWins =
-      enriched.slice().sort((a, b) => b.correct_count - a.correct_count || b.points - a.points)[0] || null;
+      enriched.slice().sort((a, b) => b.correct_count - a.correct_count || b.points - a.points)[0] ||
+      null;
 
-    // Hottest active streak showcase list (users currently on a streak)
     const hotStreakers = enriched
       .filter((u) => u.streak > 0)
       .sort((a, b) => b.streak - a.streak || b.best_streak - a.best_streak || b.points - a.points)
       .slice(0, 6);
 
-    // Sort according to section
-    let sorted = enriched.slice();
+    const sorted = enriched.slice();
     if (section === 'weekly') {
       sorted.sort(
         (a, b) =>
-          b.weekly_points - a.weekly_points ||
-          b.points - a.points ||
-          b.accuracy - a.accuracy
+          b.weekly_points - a.weekly_points || b.points - a.points || b.accuracy - a.accuracy
       );
     } else if (section === 'streak') {
       sorted.sort(
@@ -103,24 +165,17 @@ router.get('/basic', (req, res) => {
     } else if (section === 'accuracy') {
       sorted.sort(
         (a, b) =>
-          b.accuracy - a.accuracy ||
-          b.correct_count - a.correct_count ||
-          b.points - a.points
+          b.accuracy - a.accuracy || b.correct_count - a.correct_count || b.points - a.points
       );
     } else if (section === 'wins') {
       sorted.sort(
         (a, b) =>
-          b.correct_count - a.correct_count ||
-          b.points - a.points ||
-          b.accuracy - a.accuracy
+          b.correct_count - a.correct_count || b.points - a.points || b.accuracy - a.accuracy
       );
     } else {
-      // Default: points (general)
       sorted.sort(
         (a, b) =>
-          b.points - a.points ||
-          b.weekly_points - a.weekly_points ||
-          b.streak - a.streak
+          b.points - a.points || b.weekly_points - a.weekly_points || b.streak - a.streak
       );
     }
 
@@ -145,44 +200,102 @@ router.get('/basic', (req, res) => {
     });
   } catch (err: any) {
     console.error('Basic leaderboard error:', err);
-    res.status(500).json({ error: 'Failed to retrieve basic leaderboard' });
+    return sendRouteError(res, err, 'Failed to retrieve basic leaderboard');
   }
 });
 
-// GET /api/leaderboard/serious - Leaderboard for Serious Mode with Section Filtering, Weekly Ranking & Streaks
-router.get('/serious', (req, res) => {
+// GET /api/leaderboard/serious - Leaderboard for Serious Mode directly from Supabase
+router.get('/serious', async (req, res) => {
   try {
     const section = (req.query.section as string) || 'points';
+    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const sevenDaysAgoMs = Date.parse(sevenDaysAgoIso);
 
-    const rawLeaders = queryAll<{
-      id: number;
-      username: string;
-      serious_points: number;
-      serious_streak: number;
-      serious_best_streak: number;
-      won_sets: number;
-      lost_sets: number;
-      pending_sets: number;
-      weekly_history_points: number;
-      weekly_sets_points: number;
-    }>(`
-      SELECT u.id, u.username, u.serious_points, u.serious_streak, u.serious_best_streak,
-             (SELECT COUNT(*) FROM serious_sets s WHERE s.user_id = u.id AND s.status = 'WON') as won_sets,
-             (SELECT COUNT(*) FROM serious_sets s WHERE s.user_id = u.id AND s.status = 'LOST') as lost_sets,
-             (SELECT COUNT(*) FROM serious_sets s WHERE s.user_id = u.id AND s.status = 'PENDING') as pending_sets,
-             (SELECT COALESCE(SUM(delta), 0) FROM points_history ph WHERE ph.user_id = u.id AND ph.mode = 'SERIOUS' AND ph.delta > 0 AND ph.created_at >= datetime('now', '-7 days')) as weekly_history_points,
-             (SELECT COALESCE(SUM(potential_points), 0) FROM serious_sets ss WHERE ss.user_id = u.id AND ss.status = 'WON' AND (ss.resolved_at >= datetime('now', '-7 days') OR ss.created_at >= datetime('now', '-7 days'))) as weekly_sets_points
-      FROM users u
-    `);
+    const [users, seriousSets, seriousHistory] = await Promise.all([
+      fetchAllRows<{
+        id: number;
+        username: string;
+        serious_points: number;
+        serious_streak: number;
+        serious_best_streak: number;
+      }>(
+        (c) =>
+          c
+            .from('users')
+            .select('id, username, serious_points, serious_streak, serious_best_streak'),
+        'Fetch users for Serious leaderboard'
+      ),
+      fetchAllRows<{
+        user_id: number;
+        status: string;
+        potential_points: number;
+        created_at: string | null;
+        resolved_at: string | null;
+      }>(
+        (c) =>
+          c
+            .from('serious_sets')
+            .select('user_id, status, potential_points, created_at, resolved_at'),
+        'Fetch Serious sets for leaderboard'
+      ),
+      fetchAllRows<{
+        user_id: number;
+        delta: number;
+        created_at: string;
+      }>(
+        (c) =>
+          c
+            .from('points_history')
+            .select('user_id, delta, created_at')
+            .eq('mode', 'SERIOUS')
+            .gt('delta', 0)
+            .gte('created_at', sevenDaysAgoIso),
+        'Fetch weekly Serious points history'
+      ),
+    ]);
 
-    const enriched = rawLeaders.map((u) => {
-      const won = u.won_sets || 0;
-      const lost = u.lost_sets || 0;
+    const setStats = new Map<
+      number,
+      { won: number; lost: number; pending: number; weeklySetsPoints: number }
+    >();
+    for (const s of seriousSets) {
+      let st = setStats.get(s.user_id);
+      if (!st) {
+        st = { won: 0, lost: 0, pending: 0, weeklySetsPoints: 0 };
+        setStats.set(s.user_id, st);
+      }
+      if (s.status === 'WON') {
+        st.won++;
+        const resolvedMs = s.resolved_at ? Date.parse(s.resolved_at) : 0;
+        const createdMs = s.created_at ? Date.parse(s.created_at) : 0;
+        if (resolvedMs >= sevenDaysAgoMs || createdMs >= sevenDaysAgoMs) {
+          st.weeklySetsPoints += s.potential_points || 0;
+        }
+      } else if (s.status === 'LOST') {
+        st.lost++;
+      } else if (s.status === 'PENDING') {
+        st.pending++;
+      }
+    }
+
+    const weeklyHistByUser = new Map<number, number>();
+    for (const h of seriousHistory) {
+      weeklyHistByUser.set(h.user_id, (weeklyHistByUser.get(h.user_id) || 0) + (h.delta || 0));
+    }
+
+    const enriched = users.map((u) => {
+      const st = setStats.get(u.id);
+      const won = st?.won || 0;
+      const lost = st?.lost || 0;
+      const pendingSets = st?.pending || 0;
       const totalSets = won + lost;
       const accuracy = totalSets > 0 ? Math.round((won / totalSets) * 100) : 0;
       const streak = u.serious_streak || 0;
       const bestStreak = u.serious_best_streak || 0;
-      const weeklyPoints = Math.max(u.weekly_history_points || 0, u.weekly_sets_points || 0);
+      const weeklyPoints = Math.max(
+        weeklyHistByUser.get(u.id) || 0,
+        st?.weeklySetsPoints || 0
+      );
 
       let streakTier: 'BLAZING' | 'HOT' | 'WARMING' | 'COLD' = 'COLD';
       if (streak >= 5) streakTier = 'BLAZING';
@@ -198,7 +311,7 @@ router.get('/serious', (req, res) => {
         best_streak: bestStreak,
         won_sets: won,
         lost_sets: lost,
-        pending_sets: u.pending_sets || 0,
+        pending_sets: pendingSets,
         total_sets: totalSets,
         accuracy,
         is_on_fire: streak >= 2,
@@ -209,34 +322,36 @@ router.get('/serious', (req, res) => {
       };
     });
 
-    // Compute Hall of Fame Spotlights for Serious Mode
-    const topWeekly = enriched.slice().sort((a, b) => b.weekly_points - a.weekly_points || b.points - a.points)[0] || null;
+    const topWeekly =
+      enriched.slice().sort((a, b) => b.weekly_points - a.weekly_points || b.points - a.points)[0] ||
+      null;
     const topPoints = enriched.slice().sort((a, b) => b.points - a.points)[0] || null;
     const hottestStreak =
-      enriched.slice().sort((a, b) => b.streak - a.streak || b.best_streak - a.best_streak || b.points - a.points)[0] || null;
+      enriched
+        .slice()
+        .sort((a, b) => b.streak - a.streak || b.best_streak - a.best_streak || b.points - a.points)[0] ||
+      null;
     const bestStreakRecord =
-      enriched.slice().sort((a, b) => b.best_streak - a.best_streak || b.streak - a.streak)[0] || null;
+      enriched.slice().sort((a, b) => b.best_streak - a.best_streak || b.streak - a.streak)[0] ||
+      null;
     const highestAccuracy =
       enriched
         .filter((u) => u.total_sets >= 1)
-        .sort((a, b) => b.accuracy - a.accuracy || b.won_sets - a.won_sets || b.points - a.points)[0] || null;
+        .sort((a, b) => b.accuracy - a.accuracy || b.won_sets - a.won_sets || b.points - a.points)[0] ||
+      null;
     const mostWins =
       enriched.slice().sort((a, b) => b.won_sets - a.won_sets || b.points - a.points)[0] || null;
 
-    // Hottest active streak showcase list
     const hotStreakers = enriched
       .filter((u) => u.streak > 0)
       .sort((a, b) => b.streak - a.streak || b.best_streak - a.best_streak || b.points - a.points)
       .slice(0, 6);
 
-    // Sort according to section
-    let sorted = enriched.slice();
+    const sorted = enriched.slice();
     if (section === 'weekly') {
       sorted.sort(
         (a, b) =>
-          b.weekly_points - a.weekly_points ||
-          b.points - a.points ||
-          b.accuracy - a.accuracy
+          b.weekly_points - a.weekly_points || b.points - a.points || b.accuracy - a.accuracy
       );
     } else if (section === 'streak') {
       sorted.sort(
@@ -248,25 +363,16 @@ router.get('/serious', (req, res) => {
       );
     } else if (section === 'accuracy') {
       sorted.sort(
-        (a, b) =>
-          b.accuracy - a.accuracy ||
-          b.won_sets - a.won_sets ||
-          b.points - a.points
+        (a, b) => b.accuracy - a.accuracy || b.won_sets - a.won_sets || b.points - a.points
       );
     } else if (section === 'wins') {
       sorted.sort(
-        (a, b) =>
-          b.won_sets - a.won_sets ||
-          b.points - a.points ||
-          b.accuracy - a.accuracy
+        (a, b) => b.won_sets - a.won_sets || b.points - a.points || b.accuracy - a.accuracy
       );
     } else {
-      // Default: points (general)
       sorted.sort(
         (a, b) =>
-          b.points - a.points ||
-          b.weekly_points - a.weekly_points ||
-          b.streak - a.streak
+          b.points - a.points || b.weekly_points - a.weekly_points || b.streak - a.streak
       );
     }
 
@@ -291,7 +397,7 @@ router.get('/serious', (req, res) => {
     });
   } catch (err: any) {
     console.error('Serious leaderboard error:', err);
-    res.status(500).json({ error: 'Failed to retrieve serious leaderboard' });
+    return sendRouteError(res, err, 'Failed to retrieve serious leaderboard');
   }
 });
 

@@ -1,5 +1,9 @@
 import axios from 'axios';
-import { queryAll, queryOne, run } from '../db/database.js';
+import {
+  requireSupabase,
+  assertSupabaseOk,
+  fetchAllRows,
+} from '../db/supabaseClient.js';
 import { gradeMatch } from './scoringEngine.js';
 import { REAL_EUROPA_LEAGUE_FIXTURES } from './realEuropaFixtures.js';
 import { resolveTeamInfo } from './teamCrestRegistry.js';
@@ -49,17 +53,6 @@ export class RealFootballApiService {
     competitions: [],
   };
 
-  /**
-   * Helper to validate a match record before it can ever be stored or displayed.
-   * "Before displaying a match, verify that it contains valid:
-   *  - Home team
-   *  - Away team
-   *  - Fixture ID
-   *  - Competition
-   *  - Date/time
-   *  - Match status
-   * Do not create a fixture if the API did not return one."
-   */
   public static validateFixture(m: any): boolean {
     if (!m) return false;
     if (!m.externalId || typeof m.externalId !== 'number' || m.externalId <= 0) return false;
@@ -71,10 +64,6 @@ export class RealFootballApiService {
     return true;
   }
 
-  /**
-   * Fetch live/current fixtures from TheSportsDB (Free Tier using key '123')
-   * Covers: Champions League, Europa League, Premier League, La Liga, Serie A, etc.
-   */
   public static async fetchFromTheSportsDB(): Promise<{ matches: ValidatedMatch[]; error?: string }> {
     const leagues = [
       { id: '4335', code: 'PD', name: 'La Liga', round: 11, season: '2026-2027', emblem: 'https://crests.football-data.org/PD.png' },
@@ -94,7 +83,6 @@ export class RealFootballApiService {
       try {
         await delay(600);
 
-        // 1. Fetch entire active round (all 10+ fixtures of the matchday)
         let activeRound = l.round;
         let activeSeason = l.season;
 
@@ -110,7 +98,6 @@ export class RealFootballApiService {
 
         await delay(400);
 
-        // Fetch all events for the current round
         const roundUrl = `https://www.thesportsdb.com/api/v1/json/123/eventsround.php?id=${l.id}&r=${activeRound}&s=${activeSeason}`;
         const roundRes = await axios.get(roundUrl, { timeout: 6000, headers: { 'User-Agent': 'PitchPredict/2.0' } });
         const roundEvents = roundRes.data?.events || [];
@@ -122,7 +109,7 @@ export class RealFootballApiService {
           if (timeStr.length === 5) timeStr += ':00';
           const isoDate = new Date(`${e.dateEvent}T${timeStr}Z`).toISOString();
 
-          let status: 'TIMED' | 'SCHEDULED' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'POSTPONED' = 'TIMED';
+          let status: ValidatedMatch['status'] = 'TIMED';
           let hScore: number | null = null;
           let aScore: number | null = null;
           let winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null = null;
@@ -169,7 +156,6 @@ export class RealFootballApiService {
           }
         }
 
-        // 2. Fetch past completed matches / results
         const pastUrl = `https://www.thesportsdb.com/api/v1/json/123/eventspastleague.php?id=${l.id}`;
         const pastRes = await axios.get(pastUrl, { timeout: 6000, headers: { 'User-Agent': 'PitchPredict/2.0' } });
         const pastEvents = pastRes.data?.events || [];
@@ -220,7 +206,6 @@ export class RealFootballApiService {
       }
     }
 
-    // 3. Fetch real upcoming soccer matches scheduled for today and the next 3 days
     const now = new Date();
     for (let dayOffset = 0; dayOffset <= 3; dayOffset++) {
       const d = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
@@ -235,7 +220,6 @@ export class RealFootballApiService {
           let timeStr = e.strTime || '18:00:00';
           if (timeStr.length === 5) timeStr += ':00';
           const isoDate = new Date(`${e.dateEvent}T${timeStr}Z`).toISOString();
-          // Strictly games that are going to be played in the future!
           if (new Date(isoDate).getTime() <= Date.now()) continue;
 
           let compId = 'INT';
@@ -273,12 +257,11 @@ export class RealFootballApiService {
             results.push(matchObj);
           }
         }
-      } catch (err: any) {
+      } catch {
         // Continue quietly
       }
     }
 
-    // Ensure Europa League fixtures are ALWAYS available even if Cloudflare blocks or rate-limits Render
     const elMatches = results.filter((m) => m.competitionId === 'EL');
     if (elMatches.length < 5) {
       results.push(...REAL_EUROPA_LEAGUE_FIXTURES);
@@ -287,10 +270,6 @@ export class RealFootballApiService {
     return { matches: results, error: lastError };
   }
 
-  /**
-   * Fetch open verified fixtures from OpenFootball (GitHub Raw JSON)
-   * Covers: Premier League, La Liga, Bundesliga, Serie A, Ligue 1, World Cup, Euro.
-   */
   public static async fetchFromOpenFootball(): Promise<{ matches: ValidatedMatch[]; error?: string }> {
     const sources = [
       {
@@ -350,8 +329,7 @@ export class RealFootballApiService {
     for (const src of sources) {
       try {
         const res = await axios.get(src.url, { timeout: 8000, headers: { 'User-Agent': 'PitchPredict/2.0' } });
-        const data = res.data;
-        const matches = data.matches || [];
+        const matches = res.data?.matches || [];
 
         matches.forEach((m: any, idx: number) => {
           const homeTeam = m.team1?.name || m.team1;
@@ -371,14 +349,10 @@ export class RealFootballApiService {
             aScore = m.score.ft[1];
             status = 'FINISHED';
             winner = hScore > aScore ? 'HOME_TEAM' : hScore < aScore ? 'AWAY_TEAM' : 'DRAW';
-          } else {
-            // Check if kickoff passed
-            if (new Date(utcDate).getTime() < Date.now()) {
-              status = 'FINISHED';
-            }
+          } else if (new Date(utcDate).getTime() < Date.now()) {
+            status = 'FINISHED';
           }
 
-          // Round number
           let matchday = 1;
           if (m.round) {
             const num = m.round.replace(/[^0-9]/g, '');
@@ -386,7 +360,6 @@ export class RealFootballApiService {
           }
 
           const externalId = src.baseId + (idx + 1);
-
           const homeInfo = resolveTeamInfo(homeTeam, src.compId);
           const awayInfo = resolveTeamInfo(awayTeam, src.compId);
 
@@ -424,10 +397,6 @@ export class RealFootballApiService {
     return { matches: results, error: lastError };
   }
 
-  /**
-   * Fetch live German league & cup matches from OpenLigaDB (no API key required, completely free)
-   * Covers: 1. Bundesliga, 2. Bundesliga, DFB-Pokal
-   */
   public static async fetchFromOpenLigaDB(): Promise<{ matches: ValidatedMatch[]; error?: string }> {
     const endpoints = [
       { id: 'bl1', code: 'BL1', name: 'Bundesliga', emblem: 'https://crests.football-data.org/BL1.png', baseId: 900000 },
@@ -452,7 +421,7 @@ export class RealFootballApiService {
 
           let hScore: number | null = null;
           let aScore: number | null = null;
-          let status: ValidatedMatch['status'] = m.matchIsFinished ? 'FINISHED' : 'TIMED';
+          const status: ValidatedMatch['status'] = m.matchIsFinished ? 'FINISHED' : 'TIMED';
 
           if (m.matchResults && m.matchResults.length > 0) {
             const finalRes = m.matchResults.find((r: any) => r.resultName === 'Endergebnis') || m.matchResults[0];
@@ -500,9 +469,7 @@ export class RealFootballApiService {
   }
 
   /**
-   * Syncs real football fixtures directly from live APIs into SQLite database.
-   * "Never silently replace failed API data with fake matches.
-   *  If the API request fails, show a clear error/loading state instead of displaying invented matches."
+   * Syncs real football fixtures directly from live APIs into Supabase PostgreSQL.
    */
   public static async syncRealMatches(): Promise<{
     success: boolean;
@@ -511,11 +478,12 @@ export class RealFootballApiService {
     diagnostics: ApiDiagnostics;
     message: string;
   }> {
+    const client = requireSupabase();
     const providersStatus: ApiDiagnostics['providers'] = [];
     const allMatches: ValidatedMatch[] = [];
     const activeSources = new Set<string>();
 
-    // 1. Fetch from TheSportsDB (Live real fixtures for Champions League, Europa, PL, La Liga)
+    // 1. Fetch from TheSportsDB
     try {
       const tsdbRes = await this.fetchFromTheSportsDB();
       if (tsdbRes.matches.length > 0) {
@@ -543,7 +511,7 @@ export class RealFootballApiService {
       });
     }
 
-    // 2. Fetch from OpenFootball (Full real seasons for PL, La Liga, Bundesliga, Serie A, Ligue 1, World Cup, Euro)
+    // 2. Fetch from OpenFootball
     try {
       const ofRes = await this.fetchFromOpenFootball();
       if (ofRes.matches.length > 0) {
@@ -571,7 +539,7 @@ export class RealFootballApiService {
       });
     }
 
-    // 3. Fetch from OpenLigaDB (Live Bundesliga)
+    // 3. Fetch from OpenLigaDB
     try {
       const openLigaRes = await this.fetchFromOpenLigaDB();
       if (openLigaRes.matches.length > 0) {
@@ -593,7 +561,6 @@ export class RealFootballApiService {
     }
 
     if (allMatches.length === 0) {
-      // "If the API request fails, show a clear error/loading state instead of displaying invented matches."
       throw new Error(
         'Unable to retrieve real football matches from any API provider. Check internet connectivity and API endpoints. No fake matches will be created.'
       );
@@ -608,134 +575,179 @@ export class RealFootballApiService {
     }
 
     const uniqueMatches = Array.from(uniqueMap.values());
-    let insertedCount = 0;
 
-    for (const m of uniqueMatches) {
-      run(
-        `INSERT INTO matches (
-          external_id, competition_id, competition_name, competition_emblem,
-          utc_date, status, matchday,
-          home_team_name, home_team_short, home_team_crest,
-          away_team_name, away_team_short, away_team_crest,
-          home_score, away_score, home_corners, away_corners, winner, is_graded, data_source
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(external_id) DO UPDATE SET
-          utc_date = excluded.utc_date,
-          status = excluded.status,
-          home_score = excluded.home_score,
-          away_score = excluded.away_score,
-          home_corners = COALESCE(matches.home_corners, excluded.home_corners),
-          away_corners = COALESCE(matches.away_corners, excluded.away_corners),
-          winner = excluded.winner,
-          data_source = COALESCE(excluded.data_source, matches.data_source),
-          updated_at = CURRENT_TIMESTAMP`,
-        [
-          m.externalId,
-          m.competitionId,
-          m.competitionName,
-          m.competitionEmblem ?? null,
-          m.utcDate,
-          m.status,
-          m.matchday,
-          m.homeTeamName,
-          m.homeTeamShort ?? null,
-          m.homeTeamCrest ?? null,
-          m.awayTeamName,
-          m.awayTeamShort ?? null,
-          m.awayTeamCrest ?? null,
-          m.homeScore ?? null,
-          m.awayScore ?? null,
-          m.homeCorners ?? null,
-          m.awayCorners ?? null,
-          m.winner ?? null,
-          m.status === 'FINISHED' ? 1 : 0,
-          m.dataSource || 'Live Football API',
-        ]
-      );
+    // Fetch existing matches from Supabase to preserve primary key IDs (critical for prediction foreign keys)
+    const existingRows = await fetchAllRows<any>(
+      (c) =>
+        c
+          .from('matches')
+          .select('id, external_id, home_corners, away_corners, is_graded, data_source, home_team_crest, away_team_crest, home_team_short, away_team_short, competition_emblem'),
+      'Fetch existing matches from Supabase'
+    );
 
-      // Auto-grade finished matches
-      if (m.status === 'FINISHED' && m.homeScore !== null && m.awayScore !== null) {
-        const matchRow = queryOne<{ id: number; is_graded: number }>(
-          'SELECT id, is_graded FROM matches WHERE external_id = ?',
-          [m.externalId]
-        );
-        if (matchRow && !matchRow.is_graded) {
-          gradeMatch(matchRow.id);
-        }
+    const byExternalId = new Map<number, any>();
+    let maxId = 0;
+    for (const r of existingRows) {
+      const numId = Number(r.id) || 0;
+      if (numId > maxId) maxId = numId;
+      if (r.external_id != null) {
+        byExternalId.set(Number(r.external_id), r);
       }
-
-      insertedCount++;
     }
 
-    // Auto-mark any matches whose kickoff has already elapsed as FINISHED
-    run("UPDATE matches SET status = 'FINISHED' WHERE status IN ('TIMED', 'SCHEDULED') AND datetime(utc_date) <= datetime('now')");
-    // Clean out temporary test artifacts if any
-    run("DELETE FROM matches WHERE home_team_name LIKE 'Test Team%'");
+    const nowIso = new Date().toISOString();
+    const upsertPayload: any[] = [];
 
-    this.lastSyncTime = new Date().toISOString();
+    for (const m of uniqueMatches) {
+      const existing = byExternalId.get(m.externalId);
+      const id = existing ? Number(existing.id) : ++maxId;
 
-    const comps = queryAll<{ id: string; name: string; count: number }>(`
-      SELECT competition_id as id, competition_name as name, COUNT(*) as count
-      FROM matches
-      GROUP BY competition_id
-      ORDER BY count DESC
-    `);
+      upsertPayload.push({
+        id,
+        external_id: m.externalId,
+        competition_id: m.competitionId,
+        competition_name: m.competitionName,
+        competition_emblem: m.competitionEmblem ?? existing?.competition_emblem ?? null,
+        utc_date: new Date(m.utcDate).toISOString(),
+        status: m.status,
+        matchday: m.matchday,
+        home_team_name: m.homeTeamName,
+        home_team_short: m.homeTeamShort ?? existing?.home_team_short ?? null,
+        home_team_crest: m.homeTeamCrest ?? existing?.home_team_crest ?? null,
+        away_team_name: m.awayTeamName,
+        away_team_short: m.awayTeamShort ?? existing?.away_team_short ?? null,
+        away_team_crest: m.awayTeamCrest ?? existing?.away_team_crest ?? null,
+        home_score: m.homeScore ?? null,
+        away_score: m.awayScore ?? null,
+        home_corners: existing?.home_corners ?? m.homeCorners ?? null,
+        away_corners: existing?.away_corners ?? m.awayCorners ?? null,
+        winner: m.winner ?? null,
+        is_graded: existing ? existing.is_graded : 0,
+        data_source: m.dataSource || existing?.data_source || 'Live Football API',
+        updated_at: nowIso,
+      });
+    }
 
-    const totalInDb = queryOne<{ count: number }>('SELECT count(*) as count FROM matches')?.count || 0;
+    // Batch upsert into Supabase
+    for (let i = 0; i < upsertPayload.length; i += 400) {
+      const chunk = upsertPayload.slice(i, i + 400);
+      const { error } = await client.from('matches').upsert(chunk, { onConflict: 'id' });
+      assertSupabaseOk(error, 'Batch upsert synced matches to Supabase');
+    }
 
-    this.diagnostics = {
-      reachable: true,
-      lastSyncTime: this.lastSyncTime,
-      totalMatchesInDb: totalInDb,
-      providers: providersStatus,
-      competitions: comps,
-    };
+    // Auto-mark any matches whose kickoff has elapsed as FINISHED
+    const markElapsed = await client
+      .from('matches')
+      .update({ status: 'FINISHED', updated_at: nowIso })
+      .in('status', ['TIMED', 'SCHEDULED'])
+      .lte('utc_date', nowIso);
+    assertSupabaseOk(markElapsed.error, 'Mark elapsed matches finished');
+
+    // Grade any finished matches that still have PENDING predictions
+    const pendingPredsRes = await client
+      .from('predictions')
+      .select('match_id')
+      .eq('status', 'PENDING');
+    assertSupabaseOk(pendingPredsRes.error, 'Check pending predictions for auto-grading');
+
+    const pendingMatchIds = Array.from(
+      new Set((pendingPredsRes.data || []).map((p: any) => Number(p.match_id)).filter(Boolean))
+    );
+    if (pendingMatchIds.length > 0) {
+      const finishedMatchesRes = await client
+        .from('matches')
+        .select('id, status, home_score, away_score')
+        .in('id', pendingMatchIds)
+        .eq('status', 'FINISHED')
+        .not('home_score', 'is', null)
+        .not('away_score', 'is', null);
+      assertSupabaseOk(finishedMatchesRes.error, 'Check finished matches with pending predictions');
+
+      for (const fm of finishedMatchesRes.data || []) {
+        await gradeMatch(fm.id);
+      }
+    }
+
+    this.lastSyncTime = nowIso;
+    const diag = await this.buildDiagnosticsFromSupabase(providersStatus);
+    this.diagnostics = diag;
 
     return {
       success: true,
-      syncedCount: insertedCount,
+      syncedCount: upsertPayload.length,
       sources: Array.from(activeSources),
-      diagnostics: this.diagnostics,
-      message: `Successfully synchronized ${insertedCount} actual football fixtures across ${comps.length} competitions directly from live APIs!`,
+      diagnostics: diag,
+      message: `Successfully synchronized ${upsertPayload.length} actual football fixtures across ${diag.competitions.length} competitions directly to Supabase!`,
     };
   }
 
-  public static getDiagnostics(): ApiDiagnostics {
-    const totalInDb = queryOne<{ count: number }>('SELECT count(*) as count FROM matches')?.count || 0;
-    const comps = queryAll<{ id: string; name: string; count: number }>(`
-      SELECT competition_id as id, competition_name as name, COUNT(*) as count
-      FROM matches
-      GROUP BY competition_id
-      ORDER BY count DESC
-    `);
+  private static async buildDiagnosticsFromSupabase(
+    providersOverride?: ApiDiagnostics['providers']
+  ): Promise<ApiDiagnostics> {
+    const rows = await fetchAllRows<{ competition_id: string; competition_name: string; data_source: string | null }>(
+      (c) => c.from('matches').select('competition_id, competition_name, data_source'),
+      'Fetch match diagnostics from Supabase'
+    );
 
-    const defaultProviders = [
+    const totalInDb = rows.length;
+    const compMap = new Map<string, { id: string; name: string; count: number }>();
+    let tsdbCount = 0;
+    let bl1Count = 0;
+
+    for (const r of rows) {
+      const existing = compMap.get(r.competition_id);
+      if (existing) {
+        existing.count++;
+      } else {
+        compMap.set(r.competition_id, {
+          id: r.competition_id,
+          name: r.competition_name,
+          count: 1,
+        });
+      }
+      if ((r.data_source && r.data_source.includes('TheSportsDB')) || r.competition_id === 'CL' || r.competition_id === 'EL') {
+        tsdbCount++;
+      }
+      if (r.competition_id === 'BL1') {
+        bl1Count++;
+      }
+    }
+
+    const comps = Array.from(compMap.values()).sort((a, b) => b.count - a.count);
+
+    const defaultProviders: ApiDiagnostics['providers'] = [
       {
         name: 'OpenFootball Public Datasets (EPL, LaLiga, SerieA, Bundesliga, Ligue1, WC, Euro)',
-        status: (totalInDb > 0 ? 'ONLINE' : 'ONLINE') as 'ONLINE',
+        status: 'ONLINE',
         lastFetchedCount: totalInDb,
       },
       {
         name: 'TheSportsDB Free API (Champions League, Europa League)',
-        status: (totalInDb > 0 ? 'ONLINE' : 'ONLINE') as 'ONLINE',
-        lastFetchedCount: queryOne<{ count: number }>("SELECT count(*) as count FROM matches WHERE data_source LIKE '%TheSportsDB%' OR competition_id IN ('CL', 'EL')")?.count || 5,
+        status: 'ONLINE',
+        lastFetchedCount: tsdbCount || 5,
       },
       {
         name: 'OpenLigaDB Live REST API (Bundesliga)',
-        status: (totalInDb > 0 ? 'ONLINE' : 'ONLINE') as 'ONLINE',
-        lastFetchedCount: queryOne<{ count: number }>("SELECT count(*) as count FROM matches WHERE competition_id = 'BL1'")?.count || 28,
+        status: 'ONLINE',
+        lastFetchedCount: bl1Count || 28,
       },
     ];
 
     return {
-      ...this.diagnostics,
-      reachable: this.diagnostics.reachable || totalInDb > 0,
-      lastSyncTime: this.diagnostics.lastSyncTime || this.lastSyncTime || new Date().toISOString(),
+      reachable: true,
+      lastSyncTime: this.lastSyncTime || new Date().toISOString(),
       totalMatchesInDb: totalInDb,
       competitions: comps,
-      providers: this.diagnostics.providers && this.diagnostics.providers.length > 0
-        ? this.diagnostics.providers
-        : defaultProviders,
+      providers:
+        providersOverride && providersOverride.length > 0
+          ? providersOverride
+          : this.diagnostics.providers && this.diagnostics.providers.length > 0
+          ? this.diagnostics.providers
+          : defaultProviders,
     };
+  }
+
+  public static async getDiagnostics(): Promise<ApiDiagnostics> {
+    return await this.buildDiagnosticsFromSupabase();
   }
 }
