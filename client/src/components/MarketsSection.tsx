@@ -427,11 +427,6 @@ export const MarketsSection: React.FC<MarketsSectionProps> = ({
               >
                 <Clock className="w-3 h-3" />
                 <span>{formatKickoffParts(activeMatch.utc_date).datePrefix} {formatKickoffParts(activeMatch.utc_date).timeDisplay}</span>
-                {formatKickoffParts(activeMatch.utc_date).tzAbbr && (
-                  <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800">
-                    {formatKickoffParts(activeMatch.utc_date).tzAbbr}
-                  </span>
-                )}
               </span>
             )}
           </div>

@@ -156,7 +156,7 @@ export const MatchList: React.FC<MatchListProps> = ({
   const formatNextKickoff = (utcDateStr?: string) => {
     if (!utcDateStr) return '';
     const { datePrefix, timeDisplay } = formatKickoffParts(utcDateStr);
-    return `${datePrefix} at ${timeDisplay}`.trim();
+    return `${datePrefix} ${timeDisplay}`.trim();
   };
 
   // 1. BY KICKOFF TIME MATCHES: sorted strictly by kickoff time from earliest to latest

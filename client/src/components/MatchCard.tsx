@@ -20,7 +20,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onSelectMatch }) =>
   const isLive = match.status === 'IN_PLAY' || match.status === 'PAUSED';
 
   // Format date and time according to user's configured timezone
-  const { datePrefix, timeDisplay, tzAbbr } = formatKickoffParts(match.utc_date);
+  const { datePrefix, timeDisplay } = formatKickoffParts(match.utc_date);
 
   // Check user predictions on this match
   const userPredictions = match.userPredictions || [];
